@@ -1,0 +1,21 @@
+{
+  "name": "rig",
+  "type": "module",
+  "private": true,
+  "devDependencies": {
+    "@types/bun": "^1.4.2",
+    "typescript": "^7.0.2"
+  },
+  "dependencies": {
+    "@clack/prompts": "^1.8.1",
+    "zod": "^4"
+  },
+  "bin": {
+    "rig": "bin/rig"
+  },
+  "scripts": {
+    "test": "bun test",
+    "typecheck": "tsc --noEmit",
+    "rig": "bun src/cli.ts"
+  }
+}

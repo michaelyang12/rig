@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# rig launcher: resolves its own symlink (rig sync links it into ~/.local/bin) and runs the CLI with bun.
+set -euo pipefail
+src="${BASH_SOURCE[0]}"
+while [ -L "$src" ]; do
+  dir="$(cd -P "$(dirname "$src")" && pwd)"
+  src="$(readlink "$src")"
+  [[ $src != /* ]] && src="$dir/$src"
+done
+root="$(cd -P "$(dirname "$src")/.." && pwd)"
+bun="$(command -v bun || echo "$HOME/.bun/bin/bun")"
+exec "$bun" "$root/src/cli.ts" "$@"
