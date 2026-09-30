@@ -21,7 +21,7 @@ description: Use when adding, changing, debugging, or refactoring the user's `ri
 | `tools/<name>/index.ts` | A TS tool: `export default defineTool({...})` |
 | `tools/<name>/tool.json` + entry | A non-TS tool (`runtime: uv \| python \| bin`) |
 | `skills/<name>/SKILL.md` | A skill, synced to every harness |
-| `skills/rig-entryexec/` | **Generated** by `rig sync` from the tool registry. Gitignored. Never edit it. |
+| `skills/rig-entryexec/` | Static skill that sends agents to `rig ls`. Names no tools; edit it only to change how agents find or call tools |
 | `src/core/*.ts` | Internals: registry, dispatch, sync, config, paths. See below. |
 | `src/sdk/index.ts` | Public API tools import as `"rig"`: `defineTool`, `defineCommand`, `request`, `bearer`, `basicAuth`, `RigError`, `apiKeyVar` |
 | `instructions/AGENTS.md` | Global always-on instructions, linked to each harness's instructions file. Not a skill. |
@@ -36,11 +36,11 @@ description: Use when adding, changing, debugging, or refactoring the user's `ri
 1. Scaffold it with `rig new tool <name> [--auth] [--uv] [--no-skill]`. This creates `tools/<name>/` and, by default, `skills/<name>/SKILL.md`.
 2. Define commands with `defineCommand({ description, args: z.object(...), positional?, run(args, ctx), format? })`.
    - Name commands `<tool>-<verb>` (`confluence-read`). Single-command tools can use the bare tool name. Names are lowercase kebab-case and must not match a built-in.
-   - `.describe()` every arg; the text becomes `--help` and the generated skill.
+   - `.describe()` every arg; the text becomes `--help` and `rig schema`.
    - `run` returns a string (printed as-is) or an object (JSON, or text via `format`). Write diagnostics with `ctx.log` (stderr), never `console.log`.
    - Use `request()` for HTTP: it maps 401/403 to exit 3, 404 to not-found, and other failures to exit 1. Throw `RigError(code, message, hint)` for anything else.
-3. Write the tool's `description` for a reader who has never heard of it: what it does and when to use it. It goes into `rig-entryexec`'s description, which is what makes agents pick the tool up without being told.
-4. Run `rig sync` (it regenerates `rig-entryexec` and links skills), then `rig <command> --help`, then try a real call.
+3. Write the tool's `description` for a reader who has never heard of it: what it does and when to use it, in at most 300 chars (the registry reports longer ones). It's the tool's line in `rig ls`, which agents read to decide whether a tool fits.
+4. The tool shows up in `rig ls` immediately; no sync is needed for that. Run `rig sync` to link a new skill. Check `rig ls <tool>` and `rig <command> --help`, then try a real call.
 5. If the tool's skill should carry docs generated from outside the repo (for example a CLI's bundled help), return them from `skillFiles()` in `defineTool`. `rig sync` writes them into `skills/<tool>/`; add each one to `.gitignore`.
 6. Add tests under `test/`. Import the tool module directly and mock `fetch` (see `test/mint.test.ts`). Run `bun test` and `bun run typecheck`.
 
@@ -67,7 +67,7 @@ description: Use when adding, changing, debugging, or refactoring the user's `ri
 
 ## Changing rig itself
 
-- **Contract:** exit codes 0/1/2/3, the `--json` envelope, and the flag rules are relied on by every tool and by the generated skill. Change them only deliberately, and update `README.md`, `src/core/entry.ts` and this skill together.
+- **Contract:** exit codes 0/1/2/3, the `--json` envelope, and the flag rules are relied on by every tool and by `rig-entryexec`. Change them only deliberately, and update `README.md`, `skills/rig-entryexec/SKILL.md` and this skill together.
 - **SDK:** `src/sdk` is imported by every tool. Keep changes backwards compatible, or update all of `tools/*`.
 - **Sync safety:** rig only modifies a path if it's recorded in `~/.local/state/rig/links.json` *and* is still a symlink to the recorded source. Keep that invariant; tests in `test/sync.test.ts` cover it.
 - **Paths:** every location can be overridden (`RIG_ROOT`, `RIG_CONFIG_DIR`, `RIG_STATE_DIR`, `RIG_BIN_DIR`). Use `paths` from `src/core/paths.ts` rather than hardcoding. Harness dirs come only from `HARNESSES` in `src/core/harnesses.ts`; never write `~/.claude` etc. elsewhere in `src/` or test setup (tests use `sb.harness(id, kind)`).
@@ -83,4 +83,4 @@ bun run typecheck && bun test && rig sync && rig ls
 
 If you added or reshaped a `src/core` module, check `grep -rn '^// @module ' src` still describes each one accurately.
 
-Commit only when the user asks. `skills/rig-entryexec/` is gitignored, so never commit it.
+Commit only when the user asks.
