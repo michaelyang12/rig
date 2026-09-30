@@ -88,6 +88,25 @@ describe("sync", () => {
     expect(isLinkTo(join(moved, "alpha"), join(sb.root, "skills", "alpha"))).toBe(true);
   });
 
+  test("links only the harnesses named in config, in any case", async () => {
+    writeConfig({ harnesses: ["Claude", "CODEX"] });
+    mkdirSync(join(sb.root, "instructions"), { recursive: true });
+    writeFileSync(join(sb.root, "instructions", "AGENTS.md"), "# rules\n");
+    const { code } = await sb.run(["sync"]);
+    expect(code).toBe(0);
+    expect(isLinkTo(join(sb.claude, "alpha"), join(sb.root, "skills", "alpha"))).toBe(true);
+    expect(existsSync(sb.agents)).toBe(false);
+    expect(lstatSync(sb.harness("codex", "instructions")).isSymbolicLink()).toBe(true);
+  });
+
+  test("rejects an unknown harness name", async () => {
+    writeConfig({ harnesses: ["claude", "cladue"] });
+    const { code, stderr } = await sb.run(["sync"]);
+    expect(code).toBe(2);
+    expect(stderr).toContain('unknown harness "cladue"');
+    expect(stderr).toContain("valid: claude, codex, agents");
+  });
+
   test("status labels targets by harness", async () => {
     await sb.run(["sync"]);
     const { stdout } = await sb.run(["status"]);

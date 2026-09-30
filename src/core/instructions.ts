@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
-import { loadConfig, type Config } from "./config";
-import { expandHome, paths } from "./paths";
+import { instructionPaths, loadConfig, type Config } from "./config";
+import { paths } from "./paths";
 import type { LinkRecord } from "./state";
 
 /** Link name used in state, output, and change filtering. */
@@ -12,7 +12,7 @@ export const INSTRUCTIONS = "instructions";
  * from each harness's `instructions` entry in HARNESSES.
  */
 export function instructionTargets(config: Config = loadConfig()): string[] {
-  return config.instructionTargets.map(expandHome);
+  return instructionPaths(config);
 }
 
 /** Desired links, or none when the source file doesn't exist (so stale links get pruned). */

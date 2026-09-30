@@ -46,11 +46,17 @@ Harness locations are declared once, in `HARNESSES` in `src/core/harnesses.ts`:
 
 Skills and instructions paths are derived from each harness's home, so moving a harness is a one-line change there; the next `rig sync` prunes the old links and creates the new ones. To add a harness, add one entry. `rig status` labels its columns by harness name.
 
-To override the defaults, set raw paths in `~/.config/rig/config.json`: `targets` for skills dirs, `instructionTargets` for instructions files. rig only writes settings you've changed to that file, so defaults keep tracking `HARNESSES`.
+rig links into every harness by default. To choose, list them by name (any case) in `~/.config/rig/config.json`; an unknown name is an error:
+
+```json
+{ "harnesses": ["claude", "agents"] }
+```
+
+For a location that isn't a harness, `targets` (skills dirs) and `instructionTargets` (instructions files) take raw paths and override the harnesses' own. rig only writes settings you've changed to that file, so defaults keep tracking `HARNESSES`.
 
 ## Global instructions
 
-`instructions/AGENTS.md` holds always-on rules for every agent session. `rig sync` symlinks it to every harness that declares an instructions file (or to `instructionTargets` in `~/.config/rig/config.json`, if set):
+`instructions/AGENTS.md` holds always-on rules for every agent session. `rig sync` symlinks it to every configured harness that declares an instructions file (or to `instructionTargets` in `~/.config/rig/config.json`, if set):
 
 ```json
 { "instructionTargets": ["~/.claude/CLAUDE.md", "~/.codex/AGENTS.md"] }
