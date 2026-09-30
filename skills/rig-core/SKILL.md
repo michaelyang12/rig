@@ -8,7 +8,7 @@ description: Use when adding, changing, debugging, or refactoring the user's `ri
 `rig` is the user's personal agent-tooling CLI (TypeScript + Bun). It does four jobs:
 
 1. **Tools**: commands any agent calls as `rig <command> --flags`, all following one contract.
-2. **Skills**: `SKILL.md` folders symlinked into `~/.claude/skills` and `~/.agents/skills`.
+2. **Skills**: `SKILL.md` folders symlinked into each harness's skills dir (`~/.claude/skills`, `~/.agents/skills`).
 3. **Instructions**: one global instructions file linked to each harness's user-level path.
 4. **Auth**: per-tool credentials set interactively with `rig auth`.
 
@@ -26,13 +26,14 @@ description: Use when adding, changing, debugging, or refactoring the user's `ri
 | `src/core/registry.ts` | Discovers and validates tools and skills; enforces names and the auth convention |
 | `src/core/args.ts` | JSON-Schema-driven flag parsing and `--help` |
 | `src/core/dispatch.ts` | Runs TS tools in-process; spawns external tools with args on stdin |
-| `instructions/AGENTS.md` | Global always-on instructions, linked to `~/.claude/CLAUDE.md`, `~/.codex/AGENTS.md` (config `instructionTargets`). Not a skill. |
+| `instructions/AGENTS.md` | Global always-on instructions, linked to each harness's instructions file Not a skill. |
+| `src/core/harnesses.ts` | `HARNESSES`: the only place harness dirs (`~/.claude`, `~/.codex`, `~/.agents`) and their skills/instructions paths are declared. `agents` (`~/.agents/skills`) is `always` linked; config `harnesses` (names, any case; set with `rig config`) picks the rest. Never link skills into `~/.codex/skills`: Codex also reads `~/.agents/skills` and would list each skill twice. |
 | `src/core/links.ts` | Symlink sync with ownership tracking |
 | `src/core/instructions.ts` | Desired links for global instructions (fed into `links.ts`) |
 | `src/core/entry.ts` | Renders the `rig-entryexec` skill |
 | `src/core/generated.ts` | Writes tools' `skillFiles()` output into `skills/<tool>/` on sync |
 | `src/core/env.ts` | Reads and writes `~/.config/rig/.env` (0600) |
-| `src/builtins/*` | `sync`, `remove`, `add`, `desync`, `status`, `ls`, `schema`, `auth`, `new` |
+| `src/builtins/*` | `sync`, `remove`, `add`, `desync`, `status`, `config`, `ls`, `schema`, `auth`, `new` |
 | `test/` | `bun test`, fully sandboxed (temp HOME plus a copy of `test/fixtures`) |
 
 ## Adding a tool
@@ -65,7 +66,7 @@ description: Use when adding, changing, debugging, or refactoring the user's `ri
 
 ## Global instructions
 
-- `instructions/AGENTS.md` is the single source. `rig sync` links it to every path in `instructionTargets` (default `~/.claude/CLAUDE.md`, `~/.codex/AGENTS.md`). Only add a harness default when its documented global path is confirmed.
+- `instructions/AGENTS.md` is the single source. `rig sync` links it to every harness in `HARNESSES` with an `instructions` entry. Only add a harness's `instructions` when its documented global path is confirmed.
 - It's user content: edit it only when asked, and keep it to rules that apply to every session in every project.
 - Instruction links go through the same `syncLinks` diffing and ownership state as skills (kind `"instructions"`), so a pre-existing real `CLAUDE.md` is a conflict, never overwritten.
 
@@ -74,7 +75,8 @@ description: Use when adding, changing, debugging, or refactoring the user's `ri
 - **Contract:** exit codes 0/1/2/3, the `--json` envelope, and the flag rules are relied on by every tool and by the generated skill. Change them only deliberately, and update `README.md`, `src/core/entry.ts` and this skill together.
 - **SDK:** `src/sdk` is imported by every tool. Keep changes backwards compatible, or update all of `tools/*`.
 - **Sync safety:** rig only modifies a path if it's recorded in `~/.local/state/rig/links.json` *and* is still a symlink to the recorded source. Keep that invariant; tests in `test/sync.test.ts` cover it.
-- **Paths:** every location can be overridden (`RIG_ROOT`, `RIG_CONFIG_DIR`, `RIG_STATE_DIR`, `RIG_BIN_DIR`). Use `paths` from `src/core/paths.ts` rather than hardcoding.
+- **Paths:** every location can be overridden (`RIG_ROOT`, `RIG_CONFIG_DIR`, `RIG_STATE_DIR`, `RIG_BIN_DIR`). Use `paths` from `src/core/paths.ts` rather than hardcoding. Harness dirs come only from `HARNESSES` in `src/core/harnesses.ts`; never write `~/.claude` etc. elsewhere in `src/` or test setup (tests use `sb.harness(id, kind)`).
+- **Config:** `saveConfig` writes only fields that differ from the defaults, so a default change in `HARNESSES` reaches users who have a `config.json`.
 - There's no build step. The `rig` launcher runs `src/cli.ts` with bun, so edits are live immediately.
 
 ## Before finishing

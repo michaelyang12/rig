@@ -1,6 +1,7 @@
 import { cpSync, mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import { harnessPath, type HarnessId, type HarnessPath } from "../src/core/harnesses";
 
 export const REPO = resolve(import.meta.dir, "..");
 const FIXTURES = join(REPO, "test", "fixtures");
@@ -12,6 +13,8 @@ export interface Sandbox {
   env: Record<string, string>;
   claude: string;
   agents: string;
+  /** A harness's skills dir or instructions file inside this sandbox's HOME. */
+  harness(id: HarnessId, kind: HarnessPath): string;
   bin: string;
   envFile: string;
   run(args: string[], opts?: { env?: Record<string, string>; stdin?: string }): Promise<{ code: number; stdout: string; stderr: string }>;
@@ -44,13 +47,20 @@ export function sandbox(): Sandbox {
     NO_COLOR: "1",
   });
 
+  const harness = (id: HarnessId, kind: HarnessPath) => {
+    const p = harnessPath(id, kind);
+    if (!p) throw new Error(`harness ${id} has no ${kind}`);
+    return join(home, p.replace(/^~\//, ""));
+  };
+
   return {
     dir,
     root,
     home,
     env,
-    claude: join(home, ".claude", "skills"),
-    agents: join(home, ".agents", "skills"),
+    claude: harness("claude", "skills"),
+    agents: harness("agents", "skills"),
+    harness,
     bin: join(home, ".local", "bin", "rig"),
     envFile: join(home, ".config", "rig", ".env"),
     async run(args, opts = {}) {
