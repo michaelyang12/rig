@@ -4,6 +4,7 @@ Your agent tools and skills, in every harness.
 
 - **Tools**: commands any agent can call from a shell, as `rig <command> --flags`, with one uniform contract (schema-driven flags, `--json` envelope, exit codes).
 - **Skills**: `SKILL.md` folders symlinked into `~/.claude/skills` (Claude Code) and `~/.agents/skills` (Codex and other agents).
+- **Instructions**: one global instructions file (`instructions/AGENTS.md`) symlinked to each harness's user-level instructions path (`~/.claude/CLAUDE.md`, `~/.codex/AGENTS.md`).
 - **Auth**: `rig auth` walks you through the credentials each tool needs and stores them in `~/.config/rig/.env` (0600).
 
 ## Install
@@ -25,13 +26,28 @@ Edits take effect immediately. There's no build step; the `rig` launcher runs `s
 | `rig schema <command>` | A command's JSON Schema |
 | `rig new tool <name> [--auth] [--uv] [--no-skill]` | Scaffold a tool (and its skill) |
 | `rig new skill <name>` | Scaffold a skill |
-| `rig sync [--dry-run]` | Regenerate `rig-entryexec`; link enabled skills and the launcher; prune stale links; report problems |
-| `rig status` | Links per target, tools, auth state |
+| `rig sync [--dry-run]` | Regenerate `rig-entryexec`; link enabled skills, global instructions, and the launcher; prune stale links; report problems |
+| `rig status` | Links per target, instructions links, tools, auth state |
 | `rig remove <name>` / `rig add <name>` | Disable (and unlink) or re-enable a tool/skill |
 | `rig desync [--dry-run]` | Remove every link rig created |
 | `rig auth [tool] [--status] [--no-verify]` | Interactive credential setup |
 
 `sync` only ever modifies symlinks it created (recorded in `~/.local/state/rig/links.json` and still pointing where rig pointed them). Anything else in a target directory is reported as a conflict and left alone.
+
+## Global instructions
+
+`instructions/AGENTS.md` holds always-on rules for every agent session. `rig sync` symlinks it to each path in `instructionTargets` in `~/.config/rig/config.json`:
+
+```json
+{ "instructionTargets": ["~/.claude/CLAUDE.md", "~/.codex/AGENTS.md"] }
+```
+
+Those two are the defaults: Claude Code reads `~/.claude/CLAUDE.md`, and Codex reads `~/.codex/AGENTS.md` (it prefers `AGENTS.override.md` if present, and ignores a custom `CODEX_HOME`). To target another harness, add its user-level instructions path.
+
+- rig doesn't ship an `instructions/AGENTS.md`; copy `instructions/AGENTS.example.md` to start one. Without it nothing is linked, and deleting it later makes the next `sync` prune the links.
+- Same safety rules as skills: an existing real file or foreign symlink at a target (for example a `CLAUDE.md` you already wrote) is reported as a conflict and left alone. Move its contents into `instructions/AGENTS.md`, delete it, and re-run `rig sync`.
+- `rig desync` removes the links; the source file stays.
+- Keep it short: every harness loads it into every session. Put anything task-specific in a skill.
 
 ## The tool contract
 

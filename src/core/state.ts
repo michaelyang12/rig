@@ -5,7 +5,7 @@ import { paths } from "./paths";
 export interface LinkRecord {
   path: string;
   source: string;
-  kind: "skill" | "bin";
+  kind: "skill" | "bin" | "instructions";
   name: string;
 }
 

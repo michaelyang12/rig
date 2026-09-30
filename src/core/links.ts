@@ -1,6 +1,7 @@
 import { lstatSync, mkdirSync, readlinkSync, symlinkSync, unlinkSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { loadConfig, targetDirs } from "./config";
+import { instructionLinks } from "./instructions";
 import { paths } from "./paths";
 import type { Registry } from "./registry";
 import { loadState, saveState, type LinkRecord } from "./state";
@@ -40,13 +41,15 @@ export function isOwned(record: LinkRecord): boolean {
 }
 
 export function desiredLinks(registry: Registry): LinkRecord[] {
+  const config = loadConfig();
   const links: LinkRecord[] = [{ path: join(paths.binDir, "rig"), source: paths.shim, kind: "bin", name: "rig" }];
-  for (const target of targetDirs(loadConfig())) {
+  for (const target of targetDirs(config)) {
     for (const skill of registry.skills) {
       if (skill.disabled) continue;
       links.push({ path: join(target, skill.name), source: skill.dir, kind: "skill", name: skill.name });
     }
   }
+  links.push(...instructionLinks(config));
   return links;
 }
 
@@ -85,7 +88,7 @@ export function syncLinks(registry: Registry, { dryRun = false } = {}): LinkChan
     }
   }
 
-  // Prune links rig made that are no longer wanted (skill deleted or disabled).
+  // Prune links rig made that are no longer wanted (skill deleted or disabled, instructions removed).
   for (const prior of state.links) {
     if (wanted.has(prior.path)) continue;
     if (isOwned(prior)) {

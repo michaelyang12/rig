@@ -135,3 +135,91 @@ describe("desync", () => {
     expect(lstatSync(join(sb.claude, "alpha")).isDirectory()).toBe(true);
   });
 });
+
+describe("instructions", () => {
+  const writeSource = (text = "# rules\n") => {
+    mkdirSync(join(sb.root, "instructions"), { recursive: true });
+    writeFileSync(join(sb.root, "instructions", "AGENTS.md"), text);
+  };
+  const source = () => join(sb.root, "instructions", "AGENTS.md");
+  const claudeMd = () => join(sb.home, ".claude", "CLAUDE.md");
+  const codexMd = () => join(sb.home, ".codex", "AGENTS.md");
+
+  test("links the source into every harness", async () => {
+    writeSource();
+    const { code, stdout } = await sb.run(["sync"]);
+    expect(code).toBe(0);
+    expect(stdout).toContain("+ instructions → ~/.claude/CLAUDE.md");
+    expect(isLinkTo(claudeMd(), source())).toBe(true);
+    expect(isLinkTo(codexMd(), source())).toBe(true);
+    expect((await sb.run(["sync"])).stdout).toContain("9 link(s) already up to date");
+  });
+
+  test("links nothing without a source file", async () => {
+    await sb.run(["sync"]);
+    expect(existsSync(claudeMd())).toBe(false);
+    expect((await sb.run(["status"])).stdout).toContain("none (create instructions/AGENTS.md");
+  });
+
+  test("--dry-run writes nothing", async () => {
+    writeSource();
+    const { stdout } = await sb.run(["sync", "--dry-run"]);
+    expect(stdout).toContain("(dry run) + instructions → ~/.codex/AGENTS.md");
+    expect(existsSync(claudeMd())).toBe(false);
+    expect(existsSync(codexMd())).toBe(false);
+  });
+
+  test("never clobbers a real file", async () => {
+    writeSource();
+    mkdirSync(join(sb.home, ".claude"), { recursive: true });
+    writeFileSync(claudeMd(), "mine");
+    const { code, stdout } = await sb.run(["sync"]);
+    expect(code).toBe(1);
+    expect(stdout).toContain("! instructions → ~/.claude/CLAUDE.md skipped: existing file or directory");
+    expect(lstatSync(claudeMd()).isFile()).toBe(true);
+    expect(isLinkTo(codexMd(), source())).toBe(true);
+    expect((await sb.run(["status"])).stdout).toMatch(/~\/\.claude\/CLAUDE\.md\s+conflict/);
+  });
+
+  test("never replaces someone else's symlink", async () => {
+    writeSource();
+    const theirs = join(sb.dir, "dotfiles-CLAUDE.md");
+    writeFileSync(theirs, "theirs");
+    mkdirSync(join(sb.home, ".claude"), { recursive: true });
+    symlinkSync(theirs, claudeMd());
+    const { code, stdout } = await sb.run(["sync"]);
+    expect(code).toBe(1);
+    expect(stdout).toContain(`skipped: symlink to ${theirs}`);
+    expect(isLinkTo(claudeMd(), theirs)).toBe(true);
+  });
+
+  test("prunes links when the source is removed", async () => {
+    writeSource();
+    await sb.run(["sync"]);
+    rmSync(source());
+    const { stdout } = await sb.run(["sync"]);
+    expect(stdout).toContain("- instructions → ~/.claude/CLAUDE.md");
+    expect(existsSync(claudeMd())).toBe(false);
+    expect(existsSync(codexMd())).toBe(false);
+  });
+
+  test("honors instructionTargets from config", async () => {
+    writeSource();
+    const custom = join(sb.home, ".agents", "AGENTS.md");
+    mkdirSync(join(sb.home, ".config", "rig"), { recursive: true });
+    writeFileSync(join(sb.home, ".config", "rig", "config.json"), JSON.stringify({ instructionTargets: ["~/.agents/AGENTS.md"] }));
+    await sb.run(["sync"]);
+    expect(isLinkTo(custom, source())).toBe(true);
+    expect(existsSync(claudeMd())).toBe(false);
+  });
+
+  test("status and desync", async () => {
+    writeSource();
+    await sb.run(["sync"]);
+    expect((await sb.run(["status"])).stdout).toMatch(/~\/\.codex\/AGENTS\.md\s+linked/);
+    await sb.run(["desync"]);
+    expect(existsSync(claudeMd())).toBe(false);
+    expect(existsSync(codexMd())).toBe(false);
+    expect(existsSync(source())).toBe(true);
+  });
+});

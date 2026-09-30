@@ -5,11 +5,12 @@ description: Use when adding, changing, debugging, or refactoring the user's `ri
 
 # rig internals
 
-`rig` is the user's personal agent-tooling CLI (TypeScript + Bun). It does three jobs:
+`rig` is the user's personal agent-tooling CLI (TypeScript + Bun). It does four jobs:
 
 1. **Tools**: commands any agent calls as `rig <command> --flags`, all following one contract.
 2. **Skills**: `SKILL.md` folders symlinked into `~/.claude/skills` and `~/.agents/skills`.
-3. **Auth**: per-tool credentials set interactively with `rig auth`.
+3. **Instructions**: one global instructions file linked to each harness's user-level path.
+4. **Auth**: per-tool credentials set interactively with `rig auth`.
 
 `rig status` prints the repo root (normally `~/Source/rig`). Read its `README.md` for the full reference.
 
@@ -25,7 +26,9 @@ description: Use when adding, changing, debugging, or refactoring the user's `ri
 | `src/core/registry.ts` | Discovers and validates tools and skills; enforces names and the auth convention |
 | `src/core/args.ts` | JSON-Schema-driven flag parsing and `--help` |
 | `src/core/dispatch.ts` | Runs TS tools in-process; spawns external tools with args on stdin |
+| `instructions/AGENTS.md` | Global always-on instructions, linked to `~/.claude/CLAUDE.md`, `~/.codex/AGENTS.md` (config `instructionTargets`). Not a skill. |
 | `src/core/links.ts` | Symlink sync with ownership tracking |
+| `src/core/instructions.ts` | Desired links for global instructions (fed into `links.ts`) |
 | `src/core/entry.ts` | Renders the `rig-entryexec` skill |
 | `src/core/env.ts` | Reads and writes `~/.config/rig/.env` (0600) |
 | `src/builtins/*` | `sync`, `remove`, `add`, `desync`, `status`, `ls`, `schema`, `auth`, `new` |
@@ -57,6 +60,12 @@ description: Use when adding, changing, debugging, or refactoring the user's `ri
 - To move an existing skill into rig (for example from a Claude plugin), copy its folder into `skills/`. Tell the user the old copy will now be a duplicate, and offer to uninstall it.
 - Skills that use rig tools should reference them as `rig <command>`.
 - Run `rig sync` afterwards.
+
+## Global instructions
+
+- `instructions/AGENTS.md` is the single source. `rig sync` links it to every path in `instructionTargets` (default `~/.claude/CLAUDE.md`, `~/.codex/AGENTS.md`). Only add a harness default when its documented global path is confirmed.
+- It's user content: edit it only when asked, and keep it to rules that apply to every session in every project.
+- Instruction links go through the same `syncLinks` diffing and ownership state as skills (kind `"instructions"`), so a pre-existing real `CLAUDE.md` is a conflict, never overwritten.
 
 ## Changing rig itself
 
