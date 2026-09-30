@@ -2,6 +2,7 @@ import { loadConfig, saveConfig, targetDirs } from "../core/config";
 import { ENTRY_SKILL, writeEntrySkill } from "../core/entry";
 import { writeSkillFiles } from "../core/generated";
 import { lookupVar, readEnvFile } from "../core/env";
+import { harnessFor } from "../core/harnesses";
 import { instructionLinks } from "../core/instructions";
 import { desiredLinks, removeAllLinks, syncLinks, type LinkChange } from "../core/links";
 import { paths, tildify } from "../core/paths";
@@ -155,7 +156,7 @@ export async function status(): Promise<number> {
 
   console.log(c.bold("Skills"));
   if (reg.skills.length) {
-    const header = ["", ...targets.map((t) => c.dim(tildify(t)))];
+    const header = ["", ...targets.map((t) => c.dim(harnessFor(t, "skills") ?? tildify(t)))];
     const rows = reg.skills.map((s) => [
       s.disabled ? `${s.name} ${c.dim("(disabled)")}` : s.name,
       ...targets.map((t) => (s.disabled ? c.dim("-") : linkState(`${t}/${s.name}`, s.dir))),
@@ -165,7 +166,14 @@ export async function status(): Promise<number> {
 
   console.log(`\n${c.bold("Instructions")}  ${c.dim(tildify(paths.instructionsFile))}`);
   const instructions = instructionLinks();
-  if (instructions.length) console.log(table(instructions.map((l) => [tildify(l.path), linkState(l.path, l.source)])));
+  if (instructions.length) {
+    const rows = instructions.map((l) => [
+      c.dim(harnessFor(l.path, "instructions") ?? "custom"),
+      tildify(l.path),
+      linkState(l.path, l.source),
+    ]);
+    console.log(table(rows));
+  }
   else console.log(c.dim("  none (create instructions/AGENTS.md to link one)"));
 
   console.log(`\n${c.bold("Tools")}`);

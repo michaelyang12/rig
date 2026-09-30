@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { cpSync, existsSync, lstatSync, mkdirSync, readlinkSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { cpSync, existsSync, lstatSync, mkdirSync, readFileSync, readlinkSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { sandbox, type Sandbox } from "./helpers";
 
 let sb: Sandbox;
@@ -8,6 +8,12 @@ beforeEach(() => {
   sb = sandbox();
 });
 afterEach(() => sb.cleanup());
+
+const configFile = () => join(sb.home, ".config", "rig", "config.json");
+const writeConfig = (config: object) => {
+  mkdirSync(dirname(configFile()), { recursive: true });
+  writeFileSync(configFile(), JSON.stringify(config));
+};
 
 const isLinkTo = (path: string, target: string) => lstatSync(path).isSymbolicLink() && readlinkSync(path) === target;
 
@@ -69,6 +75,25 @@ describe("sync", () => {
     expect(isLinkTo(join(sb.claude, "alpha"), join(moved, "skills", "alpha"))).toBe(true);
   });
 
+  test("moves links when a skills target moves", async () => {
+    // Same path change a new harness home would cause: old links pruned, new ones created.
+    await sb.run(["sync"]);
+    const moved = join(sb.home, "moved-skills");
+    writeConfig({ targets: ["~/moved-skills"] });
+    const { code, stdout } = await sb.run(["sync"]);
+    expect(code).toBe(0);
+    expect(stdout).toContain("- alpha → " + sb.claude.replace(sb.home, "~") + "/alpha");
+    expect(existsSync(join(sb.claude, "alpha"))).toBe(false);
+    expect(existsSync(join(sb.agents, "alpha"))).toBe(false);
+    expect(isLinkTo(join(moved, "alpha"), join(sb.root, "skills", "alpha"))).toBe(true);
+  });
+
+  test("status labels targets by harness", async () => {
+    await sb.run(["sync"]);
+    const { stdout } = await sb.run(["status"]);
+    expect(stdout).toMatch(/\s+claude\s+agents\n/);
+  });
+
   test("reports broken tools without breaking the rest", async () => {
     mkdirSync(join(sb.root, "tools", "bad"));
     writeFileSync(
@@ -97,6 +122,11 @@ describe("remove / add", () => {
     r = await sb.run(["add", "alpha"]);
     expect(r.code).toBe(0);
     expect(isLinkTo(join(sb.claude, "alpha"), join(sb.root, "skills", "alpha"))).toBe(true);
+  });
+
+  test("remove saves only the disabled list, not default harness paths", async () => {
+    await sb.run(["remove", "alpha"]);
+    expect(JSON.parse(readFileSync(configFile(), "utf8"))).toEqual({ disabled: ["alpha"] });
   });
 
   test("removing a tool disables its commands", async () => {
@@ -142,8 +172,8 @@ describe("instructions", () => {
     writeFileSync(join(sb.root, "instructions", "AGENTS.md"), text);
   };
   const source = () => join(sb.root, "instructions", "AGENTS.md");
-  const claudeMd = () => join(sb.home, ".claude", "CLAUDE.md");
-  const codexMd = () => join(sb.home, ".codex", "AGENTS.md");
+  const claudeMd = () => sb.harness("claude", "instructions");
+  const codexMd = () => sb.harness("codex", "instructions");
 
   test("links the source into every harness", async () => {
     writeSource();
@@ -171,7 +201,7 @@ describe("instructions", () => {
 
   test("never clobbers a real file", async () => {
     writeSource();
-    mkdirSync(join(sb.home, ".claude"), { recursive: true });
+    mkdirSync(dirname(claudeMd()), { recursive: true });
     writeFileSync(claudeMd(), "mine");
     const { code, stdout } = await sb.run(["sync"]);
     expect(code).toBe(1);
@@ -185,7 +215,7 @@ describe("instructions", () => {
     writeSource();
     const theirs = join(sb.dir, "dotfiles-CLAUDE.md");
     writeFileSync(theirs, "theirs");
-    mkdirSync(join(sb.home, ".claude"), { recursive: true });
+    mkdirSync(dirname(claudeMd()), { recursive: true });
     symlinkSync(theirs, claudeMd());
     const { code, stdout } = await sb.run(["sync"]);
     expect(code).toBe(1);
@@ -205,18 +235,18 @@ describe("instructions", () => {
 
   test("honors instructionTargets from config", async () => {
     writeSource();
-    const custom = join(sb.home, ".agents", "AGENTS.md");
-    mkdirSync(join(sb.home, ".config", "rig"), { recursive: true });
-    writeFileSync(join(sb.home, ".config", "rig", "config.json"), JSON.stringify({ instructionTargets: ["~/.agents/AGENTS.md"] }));
+    const custom = join(sb.home, "custom", "AGENTS.md");
+    writeConfig({ instructionTargets: ["~/custom/AGENTS.md"] });
     await sb.run(["sync"]);
     expect(isLinkTo(custom, source())).toBe(true);
     expect(existsSync(claudeMd())).toBe(false);
+    expect((await sb.run(["status"])).stdout).toMatch(/custom\s+~\/custom\/AGENTS\.md\s+linked/);
   });
 
   test("status and desync", async () => {
     writeSource();
     await sb.run(["sync"]);
-    expect((await sb.run(["status"])).stdout).toMatch(/~\/\.codex\/AGENTS\.md\s+linked/);
+    expect((await sb.run(["status"])).stdout).toMatch(/codex\s+~\/\.codex\/AGENTS\.md\s+linked/);
     await sb.run(["desync"]);
     expect(existsSync(claudeMd())).toBe(false);
     expect(existsSync(codexMd())).toBe(false);

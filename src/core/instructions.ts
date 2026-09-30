@@ -8,8 +8,8 @@ export const INSTRUCTIONS = "instructions";
 
 /**
  * Global instructions: one always-on file (`instructions/AGENTS.md`) linked to each harness's
- * user-level instructions path. Harnesses read it under their own filename, e.g. Claude Code
- * reads ~/.claude/CLAUDE.md and Codex reads ~/.codex/AGENTS.md.
+ * user-level instructions path. Harnesses read it under their own filename; the defaults come
+ * from each harness's `instructions` entry in HARNESSES.
  */
 export function instructionTargets(config: Config = loadConfig()): string[] {
   return config.instructionTargets.map(expandHome);
