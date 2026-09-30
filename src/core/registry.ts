@@ -1,4 +1,4 @@
-// @module Discovers and validates tools/ and skills/: names, reserved commands, and the <TOOL>_ auth convention.
+// @module Discovers and validates tools/ and skills/: names, reserved commands, tool description length, and the <TOOL>_ auth convention.
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { z } from "zod";
@@ -8,6 +8,8 @@ import { paths } from "./paths";
 
 export const RESERVED = ["sync", "remove", "add", "desync", "ls", "status", "auth", "config", "schema", "new", "help"];
 const NAME_RE = /^[a-z][a-z0-9-]*$/;
+/** A tool's description is its line in `rig ls`; the cap keeps that index cheap for agents to read. */
+export const TOOL_DESCRIPTION_MAX = 300;
 
 export interface JSONSchema {
   type?: string | string[];
@@ -206,6 +208,9 @@ export async function loadRegistry(): Promise<Registry> {
       tool.disabled = disabled.includes(name);
       tools.push(tool);
       if (tool.disabled) continue;
+      if (tool.description.length > TOOL_DESCRIPTION_MAX) {
+        problems.push(`tool ${name}: description is ${tool.description.length} chars; keep it to ${TOOL_DESCRIPTION_MAX} (it's the tool's line in \`rig ls\`)`);
+      }
 
       for (const cmd of tool.commands) {
         if (!NAME_RE.test(cmd.name)) problems.push(`tool ${name}: command "${cmd.name}" must be lowercase kebab-case`);

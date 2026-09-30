@@ -1,5 +1,4 @@
 import { activeHarnesses, loadConfig, saveConfig } from "../core/config";
-import { ENTRY_SKILL, writeEntrySkill } from "../core/entry";
 import { writeSkillFiles } from "../core/generated";
 import { lookupVar, readEnvFile } from "../core/env";
 import { harnessPath } from "../core/harnesses";
@@ -45,19 +44,13 @@ function printProblems(reg: Registry): void {
 export async function sync(argv: string[]): Promise<number> {
   const { flags } = takeFlags(argv, ["--dry-run"]);
   const dryRun = flags.has("--dry-run");
-  let reg = await loadRegistry();
-  const regenerated = writeEntrySkill(reg, { dryRun });
-  if (regenerated && !dryRun) {
-    resetRegistry();
-    reg = await loadRegistry();
-  }
+  const reg = await loadRegistry();
   const generated = await writeSkillFiles(reg, { dryRun });
   const changes = syncLinks(reg, { dryRun });
 
   const tools = reg.tools.filter((t) => !t.disabled);
   const skills = reg.skills.filter((s) => !s.disabled);
   console.log(c.bold(`rig: ${tools.length} tool(s), ${reg.commands.size} command(s), ${skills.length} skill(s)`));
-  if (regenerated) console.log(`  ${dryRun ? c.dim("(dry run) ") : ""}${c.yellow("~")} regenerated ${ENTRY_SKILL} from ${reg.commands.size} command(s)`);
   for (const rel of generated) console.log(`  ${dryRun ? c.dim("(dry run) ") : ""}${c.yellow("~")} regenerated ${rel}`);
   printChanges(changes, dryRun);
   printProblems(reg);
@@ -96,7 +89,6 @@ export async function remove(argv: string[]): Promise<number> {
   for (const t of reg.tools) if (t.name === name) t.disabled = true;
   for (const s of reg.skills) if (s.name === name) s.disabled = true;
   for (const [cmd, def] of reg.commands) if (def.tool.name === name) reg.commands.delete(cmd);
-  writeEntrySkill(reg, { dryRun });
   const changes = syncLinks(reg, { dryRun }).filter((ch) => ch.link.name === name);
 
   console.log(`${dryRun ? c.dim("(dry run) ") : ""}disabled ${c.bold(name)}`);
@@ -120,7 +112,6 @@ export async function add(argv: string[]): Promise<number> {
   saveConfig(config);
   resetRegistry();
   const reg = await loadRegistry();
-  writeEntrySkill(reg);
   const changes = syncLinks(reg).filter((ch) => ch.link.name === name);
   console.log(`enabled ${c.bold(name)}`);
   printChanges(changes, false);
