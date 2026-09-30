@@ -20,7 +20,7 @@ ${c.bold("Sync")}
   rig status                 Show links, tools and auth state
   rig remove <name>          Unlink and disable a skill/tool
   rig add <name>             Re-enable a removed skill/tool
-  rig desync [--dry-run]     Remove every link rig created
+  rig desync [--dry-run]     Remove every link rig created (keeps rig itself)
   rig config                 Choose harnesses interactively (or: rig config harnesses <name>...)
 
 ${c.bold("Auth")}

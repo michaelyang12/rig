@@ -103,15 +103,23 @@ export function syncLinks(registry: Registry, { dryRun = false } = {}): LinkChan
   return changes;
 }
 
-/** Remove every link rig owns. Never touches anything else. */
+/**
+ * Remove every link rig owns except the `rig` bin link, so the command stays available to re-sync.
+ * Never touches anything else.
+ */
 export function removeAllLinks({ dryRun = false } = {}): LinkChange[] {
   const state = loadState();
   const changes: LinkChange[] = [];
+  const kept: LinkRecord[] = [];
   for (const prior of state.links) {
+    if (prior.kind === "bin") {
+      kept.push(prior);
+      continue;
+    }
     if (!isOwned(prior)) continue;
     if (!dryRun) unlinkSync(prior.path);
     changes.push({ action: "pruned", link: prior });
   }
-  if (!dryRun) saveState({ links: [] });
+  if (!dryRun) saveState({ links: kept });
   return changes;
 }

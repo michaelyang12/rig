@@ -29,7 +29,7 @@ Edits take effect immediately. There's no build step; the `rig` launcher runs `s
 | `rig sync [--dry-run]` | Regenerate `rig-entryexec`; link enabled skills, global instructions, and the launcher; prune stale links; report problems |
 | `rig status` | Links per target, instructions links, tools, auth state |
 | `rig remove <name>` / `rig add <name>` | Disable (and unlink) or re-enable a tool/skill |
-| `rig desync [--dry-run]` | Remove every link rig created |
+| `rig desync [--dry-run]` | Remove every link rig created except the `rig` command itself |
 | `rig config [harnesses <name>... \| none]` | Choose which harnesses to link into besides `~/.agents` (interactive without args), then re-sync |
 | `rig auth [tool] [--status] [--no-verify]` | Interactive credential setup |
 

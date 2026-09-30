@@ -177,7 +177,7 @@ describe("desync", () => {
     const { code } = await sb.run(["desync"]);
     expect(code).toBe(0);
     expect(existsSync(join(sb.claude, "alpha"))).toBe(false);
-    expect(existsSync(sb.bin)).toBe(false);
+    expect(lstatSync(sb.bin).isSymbolicLink()).toBe(true);
     expect(lstatSync(foreign).isSymbolicLink()).toBe(true);
     expect((await sb.run(["desync"])).stdout).toContain("nothing to remove");
   });
