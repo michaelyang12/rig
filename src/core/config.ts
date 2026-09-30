@@ -4,12 +4,15 @@ import { expandHome, paths } from "./paths";
 export interface Config {
   /** Directories skills are symlinked into. Stored with `~`, expanded on read. */
   targets: string[];
+  /** Paths the global instructions file is symlinked to, one per harness. Stored with `~`. */
+  instructionTargets: string[];
   /** Tool/skill names excluded from sync and dispatch (set by `rig remove`). */
   disabled: string[];
 }
 
 const DEFAULTS: Config = {
   targets: ["~/.claude/skills", "~/.agents/skills"],
+  instructionTargets: ["~/.claude/CLAUDE.md", "~/.codex/AGENTS.md"],
   disabled: [],
 };
 
@@ -20,6 +23,7 @@ export function loadConfig(): Config {
   }
   return {
     targets: stored.targets ?? DEFAULTS.targets,
+    instructionTargets: stored.instructionTargets ?? DEFAULTS.instructionTargets,
     disabled: stored.disabled ?? DEFAULTS.disabled,
   };
 }

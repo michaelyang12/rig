@@ -14,6 +14,12 @@ export const paths = {
   get skills() {
     return join(this.root, "skills");
   },
+  get instructions() {
+    return join(this.root, "instructions");
+  },
+  get instructionsFile() {
+    return join(this.instructions, "AGENTS.md");
+  },
   get shim() {
     return join(this.root, "bin", "rig");
   },

@@ -2,6 +2,7 @@ import { loadConfig, saveConfig, targetDirs } from "../core/config";
 import { ENTRY_SKILL, writeEntrySkill } from "../core/entry";
 import { writeSkillFiles } from "../core/generated";
 import { lookupVar, readEnvFile } from "../core/env";
+import { instructionLinks } from "../core/instructions";
 import { desiredLinks, removeAllLinks, syncLinks, type LinkChange } from "../core/links";
 import { paths, tildify } from "../core/paths";
 import { loadRegistry, resetRegistry, type Registry, type ResolvedTool } from "../core/registry";
@@ -161,6 +162,11 @@ export async function status(): Promise<number> {
     ]);
     console.log(table([header, ...rows]));
   } else console.log(c.dim("  none"));
+
+  console.log(`\n${c.bold("Instructions")}  ${c.dim(tildify(paths.instructionsFile))}`);
+  const instructions = instructionLinks();
+  if (instructions.length) console.log(table(instructions.map((l) => [tildify(l.path), linkState(l.path, l.source)])));
+  else console.log(c.dim("  none (create instructions/AGENTS.md to link one)"));
 
   console.log(`\n${c.bold("Tools")}`);
   if (reg.tools.length) {
