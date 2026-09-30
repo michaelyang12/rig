@@ -27,9 +27,10 @@ const BLOCKING: Source[] = ["local", "source", "brew", "github"];
 const NPM_POPULAR = 10_000;
 const TIMEOUT_MS = 6_000;
 
-async function probe(url: string, headers: Record<string, string> = {}): Promise<Response | Check> {
+async function probe(url: string, headers: Record<string, string> = {}, method = "GET"): Promise<Response | Check> {
   try {
     return await fetch(url, {
+      method,
       headers: { "user-agent": "rig-mint-check (https://github.com/michaelyang12/rig)", ...headers },
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });
@@ -38,9 +39,9 @@ async function probe(url: string, headers: Record<string, string> = {}): Promise
   }
 }
 
-/** 200 → taken, 404 → free, anything else → error. */
+/** 200 → taken, 404 → free, anything else → error. HEAD so large registry documents are never downloaded. */
 async function exists(url: string, headers?: Record<string, string>): Promise<Check> {
-  const res = await probe(url, headers);
+  const res = await probe(url, headers, "HEAD");
   if (!(res instanceof Response)) return res;
   if (res.status === 404) return { status: "free" };
   if (res.ok) return { status: "taken" };
@@ -76,9 +77,11 @@ const checks: Record<Source, (name: string, opts: { sourceDir: string; owner?: s
   },
 
   async npm(name) {
-    const check = await exists(`https://registry.npmjs.org/${name}`);
+    const [check, res] = await Promise.all([
+      exists(`https://registry.npmjs.org/${name}`),
+      probe(`https://api.npmjs.org/downloads/point/last-week/${name}`),
+    ]);
     if (check.status !== "taken") return check;
-    const res = await probe(`https://api.npmjs.org/downloads/point/last-week/${name}`);
     if (!(res instanceof Response) || !res.ok) return check;
     const { downloads } = (await res.json()) as { downloads?: number };
     return { status: "taken", detail: `${(downloads ?? 0).toLocaleString("en-US")}/wk` };
@@ -109,14 +112,19 @@ export function verdict(name: string, results: Record<string, Check>): NameRepor
   return { name, verdict: conflicts.length ? "conflict" : "clear", conflicts, checks: results };
 }
 
-async function githubLogin(): Promise<string | undefined> {
+async function gh(args: string[]): Promise<string | undefined> {
   try {
-    const proc = Bun.spawn(["gh", "api", "user", "--jq", ".login"], { stdout: "pipe", stderr: "ignore" });
+    const proc = Bun.spawn(["gh", ...args], { stdout: "pipe", stderr: "ignore" });
     const out = (await new Response(proc.stdout).text()).trim();
     return (await proc.exited) === 0 && out ? out : undefined;
   } catch {
     return undefined;
   }
+}
+
+/** The local gh config is instant; `gh api user` costs a network round trip, so it is only the fallback. */
+async function githubLogin(): Promise<string | undefined> {
+  return (await gh(["config", "get", "-h", "github.com", "user"])) ?? gh(["api", "user", "--jq", ".login"]);
 }
 
 function cell(check: Check | undefined): string {
