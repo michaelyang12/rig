@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { BUILTINS } from "../src/builtins";
 import { RESERVED } from "../src/core/registry";
@@ -17,5 +17,17 @@ describe("rig-core skill stays in sync", () => {
 
   test("every built-in is reserved, so no tool command can be shadowed by one", () => {
     expect(Object.keys(BUILTINS).filter((name) => !RESERVED.includes(name))).toEqual([]);
+  });
+});
+
+// rig-core points agents at `grep -rn '^// @module ' src` instead of listing core files,
+// so each core module must open with that exact header or it vanishes from the map.
+describe("src/core module headers", () => {
+  test("every core module starts with a non-empty `// @module ` line", () => {
+    const dir = join(REPO, "src", "core");
+    const missing = readdirSync(dir)
+      .filter((f) => f.endsWith(".ts"))
+      .filter((f) => !/^\/\/ @module \S/.test(readFileSync(join(dir, f), "utf8")));
+    expect(missing).toEqual([]);
   });
 });

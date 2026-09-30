@@ -72,7 +72,7 @@ description: Use when adding, changing, debugging, or refactoring the user's `ri
 - **Sync safety:** rig only modifies a path if it's recorded in `~/.local/state/rig/links.json` *and* is still a symlink to the recorded source. Keep that invariant; tests in `test/sync.test.ts` cover it.
 - **Paths:** every location can be overridden (`RIG_ROOT`, `RIG_CONFIG_DIR`, `RIG_STATE_DIR`, `RIG_BIN_DIR`). Use `paths` from `src/core/paths.ts` rather than hardcoding. Harness dirs come only from `HARNESSES` in `src/core/harnesses.ts`; never write `~/.claude` etc. elsewhere in `src/` or test setup (tests use `sb.harness(id, kind)`).
 - **Config:** `saveConfig` writes only fields that differ from the defaults, so a default change in `HARNESSES` reaches users who have a `config.json`.
-- **Module headers:** every `src/core/*.ts` starts with a one-line `// @module <what it owns>` header (the `@module ` prefix is what the lookup greps for, so keep it exact). A new core file must start with one. If a change alters what a module owns or guarantees (not just its internals), update its header in the same change.
+- **Module headers:** every `src/core/*.ts` starts with a one-line `// @module <what it owns>` header (the `@module ` prefix is what the lookup greps for, so keep it exact; `test/rig-core.test.ts` fails without it). A new core file must start with one. If a change alters what a module owns or guarantees (not just its internals), update its header in the same change.
 - There's no build step. The `rig` launcher runs `src/cli.ts` with bun, so edits are live immediately.
 
 ## Before finishing
