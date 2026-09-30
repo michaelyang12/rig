@@ -62,6 +62,12 @@ export interface ToolDef {
   auth?: AuthVar[];
   /** Cheap authenticated call run by `rig auth` after setup. Throw to signal bad credentials. */
   verify?(ctx: Context): Promise<void>;
+  /**
+   * Files generated into `skills/<tool>/` on every `rig sync`, keyed by path relative to that folder.
+   * For content that must track something outside the repo (e.g. a CLI's bundled docs); gitignore them.
+   * An `undefined` value skips that file, e.g. when the upstream binary isn't installed.
+   */
+  skillFiles?(): Record<string, string | undefined> | Promise<Record<string, string | undefined>>;
   commands: Record<string, CommandDef<any>>;
 }
 
