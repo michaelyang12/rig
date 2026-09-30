@@ -40,6 +40,7 @@ export interface ResolvedTool {
   disabled: boolean;
   commands: ResolvedCommand[];
   verify?: (ctx: Context) => Promise<void>;
+  skillFiles?: ToolDef["skillFiles"];
   runtime?: Runtime;
   entry?: string;
   verifyCommand?: string;
@@ -125,6 +126,7 @@ async function loadTsTool(name: string, dir: string, file: string): Promise<Reso
     disabled: false,
     commands: [],
     verify: def.verify,
+    skillFiles: def.skillFiles,
   };
   for (const [cmdName, cmd] of Object.entries(def.commands)) {
     tool.commands.push({

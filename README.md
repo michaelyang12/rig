@@ -87,6 +87,7 @@ export default defineTool({
 - `request()` maps 401/403 to exit 3 with a `rig auth <tool>` hint, 404 to not-found, and other failures to exit 1.
 - `ctx.secret(name)` reads the shell env first, then `~/.config/rig/.env`. `ctx.log()` writes to stderr.
 - Missing required vars fail before `run` is called, with exit 3.
+- `skillFiles()` (optional) returns files that `rig sync` writes into `skills/<tool>/`, for docs that must track something outside the repo. `herdr` uses it to regenerate `reference.md` from `herdr --skill`. Gitignore those files.
 
 **Other languages:** `rig new tool <name> --uv` creates a `tool.json` manifest (JSON Schema args, `runtime: uv | python | bin`) and a PEP 723 `main.py`. rig passes the args as JSON on stdin, the command name as `argv[1]`, and auth vars in the environment.
 

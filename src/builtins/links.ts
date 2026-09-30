@@ -1,5 +1,6 @@
 import { loadConfig, saveConfig, targetDirs } from "../core/config";
 import { ENTRY_SKILL, writeEntrySkill } from "../core/entry";
+import { writeSkillFiles } from "../core/generated";
 import { lookupVar, readEnvFile } from "../core/env";
 import { desiredLinks, removeAllLinks, syncLinks, type LinkChange } from "../core/links";
 import { paths, tildify } from "../core/paths";
@@ -48,12 +49,14 @@ export async function sync(argv: string[]): Promise<number> {
     resetRegistry();
     reg = await loadRegistry();
   }
+  const generated = await writeSkillFiles(reg, { dryRun });
   const changes = syncLinks(reg, { dryRun });
 
   const tools = reg.tools.filter((t) => !t.disabled);
   const skills = reg.skills.filter((s) => !s.disabled);
   console.log(c.bold(`rig: ${tools.length} tool(s), ${reg.commands.size} command(s), ${skills.length} skill(s)`));
   if (regenerated) console.log(`  ${dryRun ? c.dim("(dry run) ") : ""}${c.yellow("~")} regenerated ${ENTRY_SKILL} from ${reg.commands.size} command(s)`);
+  for (const rel of generated) console.log(`  ${dryRun ? c.dim("(dry run) ") : ""}${c.yellow("~")} regenerated ${rel}`);
   printChanges(changes, dryRun);
   printProblems(reg);
 

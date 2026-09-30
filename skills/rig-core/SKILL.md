@@ -27,6 +27,7 @@ description: Use when adding, changing, debugging, or refactoring the user's `ri
 | `src/core/dispatch.ts` | Runs TS tools in-process; spawns external tools with args on stdin |
 | `src/core/links.ts` | Symlink sync with ownership tracking |
 | `src/core/entry.ts` | Renders the `rig-entryexec` skill |
+| `src/core/generated.ts` | Writes tools' `skillFiles()` output into `skills/<tool>/` on sync |
 | `src/core/env.ts` | Reads and writes `~/.config/rig/.env` (0600) |
 | `src/builtins/*` | `sync`, `remove`, `add`, `desync`, `status`, `ls`, `schema`, `auth`, `new` |
 | `test/` | `bun test`, fully sandboxed (temp HOME plus a copy of `test/fixtures`) |
@@ -41,7 +42,8 @@ description: Use when adding, changing, debugging, or refactoring the user's `ri
    - Use `request()` for HTTP: it maps 401/403 to exit 3, 404 to not-found, and other failures to exit 1. Throw `RigError(code, message, hint)` for anything else.
 3. Write the tool's `description` for a reader who has never heard of it: what it does and when to use it. It goes into `rig-entryexec`'s description, which is what makes agents pick the tool up without being told.
 4. Run `rig sync` (it regenerates `rig-entryexec` and links skills), then `rig <command> --help`, then try a real call.
-5. Add tests under `test/`. Import the tool module directly and mock `fetch` (see `test/mint.test.ts`). Run `bun test` and `bun run typecheck`.
+5. If the tool's skill should carry docs generated from outside the repo (for example a CLI's bundled help), return them from `skillFiles()` in `defineTool`. `rig sync` writes them into `skills/<tool>/`; add each one to `.gitignore`.
+6. Add tests under `test/`. Import the tool module directly and mock `fetch` (see `test/mint.test.ts`). Run `bun test` and `bun run typecheck`.
 
 ### Auth convention
 
