@@ -1,3 +1,4 @@
+// @module Writes tools' skillFiles() output into skills/<tool>/ during sync.
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { paths } from "./paths";

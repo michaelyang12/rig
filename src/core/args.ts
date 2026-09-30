@@ -1,3 +1,4 @@
+// @module Turns argv into a command's args from its JSON Schema (flags, positionals, --input, --json) and renders --help.
 import { RigError } from "../sdk";
 import type { JSONSchema } from "./registry";
 

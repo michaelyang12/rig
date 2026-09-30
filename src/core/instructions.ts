@@ -1,3 +1,4 @@
+// @module Desired links for the global instructions file (instructions/AGENTS.md → each harness), fed into links.ts.
 import { existsSync } from "node:fs";
 import { instructionPaths, loadConfig, type Config } from "./config";
 import { paths } from "./paths";

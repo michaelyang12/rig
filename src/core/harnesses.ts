@@ -1,3 +1,4 @@
+// @module The one place harness dirs (~/.claude, ~/.codex, ~/.agents) are declared; every other path is derived from HARNESSES.
 /**
  * A coding-agent harness rig links into. `home` is its user-level dir (with `~`); `skills` and
  * `instructions` are paths inside it, present only if the harness reads that kind of file there.

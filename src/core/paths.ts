@@ -1,7 +1,7 @@
+// @module Every location rig uses (repo, config, state, bin), each overridable by env so tests run in a sandbox.
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 
-// Every location is overridable via env so tests can run against a sandbox.
 const home = () => process.env.HOME ?? homedir();
 
 export const paths = {

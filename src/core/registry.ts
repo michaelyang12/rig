@@ -1,3 +1,4 @@
+// @module Discovers and validates tools/ and skills/: names, reserved commands, and the <TOOL>_ auth convention.
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { z } from "zod";
@@ -5,7 +6,7 @@ import { apiKeyVar, envPrefix, type AuthVar, type CommandDef, type Context, type
 import { loadConfig } from "./config";
 import { paths } from "./paths";
 
-export const RESERVED = ["sync", "remove", "add", "desync", "ls", "status", "auth", "schema", "new", "help"];
+export const RESERVED = ["sync", "remove", "add", "desync", "ls", "status", "auth", "config", "schema", "new", "help"];
 const NAME_RE = /^[a-z][a-z0-9-]*$/;
 
 export interface JSONSchema {

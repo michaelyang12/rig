@@ -1,3 +1,4 @@
+// @module ~/.config/rig/config.json: which harnesses to link into and which tools/skills are disabled.
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { RigError } from "../sdk";
 import { ALWAYS_HARNESS_IDS, HARNESS_IDS, OPTIONAL_HARNESS_IDS, harnessPaths, parseHarnessId, type HarnessId } from "./harnesses";

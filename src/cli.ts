@@ -1,27 +1,10 @@
 #!/usr/bin/env bun
-import { auth } from "./builtins/auth";
-import { config } from "./builtins/config";
-import { add, desync, remove, status, sync } from "./builtins/links";
-import { ls, schema } from "./builtins/ls";
-import { newCmd } from "./builtins/new";
+import { BUILTINS } from "./builtins";
 import { runCommand } from "./core/dispatch";
 import { printError } from "./core/output";
 import { loadRegistry } from "./core/registry";
 import { c } from "./core/ui";
 import { RigError } from "./sdk";
-
-const BUILTINS: Record<string, (argv: string[]) => Promise<number>> = {
-  ls,
-  schema,
-  sync,
-  remove,
-  add,
-  desync,
-  status,
-  auth,
-  config,
-  new: newCmd,
-};
 
 const HELP = `${c.bold("rig")}: your agent tools and skills, in every harness
 

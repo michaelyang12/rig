@@ -1,3 +1,4 @@
+// @module The stdout contract: text or the --json envelope, and mapping errors to exit codes 0/1/2/3.
 import { z } from "zod";
 import { RigError } from "../sdk";
 
