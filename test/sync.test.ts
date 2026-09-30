@@ -34,7 +34,7 @@ describe("sync", () => {
     await sb.run(["sync"]);
     const { code, stdout } = await sb.run(["sync"]);
     expect(code).toBe(0);
-    expect(stdout).toContain("7 link(s) already up to date");
+    expect(stdout).toContain("5 link(s) already up to date");
     expect(stdout).not.toContain("regenerated");
     expect(stdout).not.toContain("+ ");
   });
@@ -207,7 +207,7 @@ describe("instructions", () => {
     expect(stdout).toContain("+ instructions → ~/.claude/CLAUDE.md");
     expect(isLinkTo(claudeMd(), source())).toBe(true);
     expect(isLinkTo(codexMd(), source())).toBe(true);
-    expect((await sb.run(["sync"])).stdout).toContain("9 link(s) already up to date");
+    expect((await sb.run(["sync"])).stdout).toContain("7 link(s) already up to date");
   });
 
   test("links nothing without a source file", async () => {

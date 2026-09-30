@@ -9,7 +9,7 @@ import { RigError } from "./sdk";
 const HELP = `${c.bold("rig")}: your agent tools and skills, in every harness
 
 ${c.bold("Tools")}
-  rig ls [--json]            List tool commands
+  rig ls [tool] [--json]     List tools, or one tool's commands
   rig <command> --help       Show a command's flags
   rig schema <command>       Print a command's JSON Schema
   rig new tool <name>        Scaffold a tool (--auth, --uv, --no-skill)
