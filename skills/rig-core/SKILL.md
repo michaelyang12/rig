@@ -26,14 +26,14 @@ description: Use when adding, changing, debugging, or refactoring the user's `ri
 | `src/core/registry.ts` | Discovers and validates tools and skills; enforces names and the auth convention |
 | `src/core/args.ts` | JSON-Schema-driven flag parsing and `--help` |
 | `src/core/dispatch.ts` | Runs TS tools in-process; spawns external tools with args on stdin |
-| `instructions/AGENTS.md` | Global always-on instructions, linked to each harness's instructions file (config `instructionTargets` overrides). Not a skill. |
-| `src/core/harnesses.ts` | `HARNESSES`: the only place harness dirs (`~/.claude`, `~/.codex`, `~/.agents`) and their skills/instructions paths are declared. Config `harnesses` (names, any case) picks which to link; `targets`/`instructionTargets` override with raw paths. |
+| `instructions/AGENTS.md` | Global always-on instructions, linked to each harness's instructions file Not a skill. |
+| `src/core/harnesses.ts` | `HARNESSES`: the only place harness dirs (`~/.claude`, `~/.codex`, `~/.agents`) and their skills/instructions paths are declared. Config `harnesses` (names, any case; set with `rig config`) picks which to link. |
 | `src/core/links.ts` | Symlink sync with ownership tracking |
 | `src/core/instructions.ts` | Desired links for global instructions (fed into `links.ts`) |
 | `src/core/entry.ts` | Renders the `rig-entryexec` skill |
 | `src/core/generated.ts` | Writes tools' `skillFiles()` output into `skills/<tool>/` on sync |
 | `src/core/env.ts` | Reads and writes `~/.config/rig/.env` (0600) |
-| `src/builtins/*` | `sync`, `remove`, `add`, `desync`, `status`, `ls`, `schema`, `auth`, `new` |
+| `src/builtins/*` | `sync`, `remove`, `add`, `desync`, `status`, `config`, `ls`, `schema`, `auth`, `new` |
 | `test/` | `bun test`, fully sandboxed (temp HOME plus a copy of `test/fixtures`) |
 
 ## Adding a tool
@@ -66,7 +66,7 @@ description: Use when adding, changing, debugging, or refactoring the user's `ri
 
 ## Global instructions
 
-- `instructions/AGENTS.md` is the single source. `rig sync` links it to every harness in `HARNESSES` with an `instructions` entry, or to `instructionTargets` if config sets it. Only add a harness's `instructions` when its documented global path is confirmed.
+- `instructions/AGENTS.md` is the single source. `rig sync` links it to every harness in `HARNESSES` with an `instructions` entry. Only add a harness's `instructions` when its documented global path is confirmed.
 - It's user content: edit it only when asked, and keep it to rules that apply to every session in every project.
 - Instruction links go through the same `syncLinks` diffing and ownership state as skills (kind `"instructions"`), so a pre-existing real `CLAUDE.md` is a conflict, never overwritten.
 

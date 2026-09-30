@@ -1,11 +1,11 @@
-import { loadConfig, saveConfig, targetDirs } from "../core/config";
+import { loadConfig, saveConfig } from "../core/config";
 import { ENTRY_SKILL, writeEntrySkill } from "../core/entry";
 import { writeSkillFiles } from "../core/generated";
 import { lookupVar, readEnvFile } from "../core/env";
-import { harnessFor } from "../core/harnesses";
+import { harnessPath } from "../core/harnesses";
 import { instructionLinks } from "../core/instructions";
 import { desiredLinks, removeAllLinks, syncLinks, type LinkChange } from "../core/links";
-import { paths, tildify } from "../core/paths";
+import { expandHome, paths, tildify } from "../core/paths";
 import { loadRegistry, resetRegistry, type Registry, type ResolvedTool } from "../core/registry";
 import { c, table, takeFlags } from "../core/ui";
 import { RigError } from "../sdk";
@@ -148,7 +148,13 @@ function linkState(path: string, source: string): string {
 
 export async function status(): Promise<number> {
   const reg = await loadRegistry();
-  const targets = targetDirs(loadConfig());
+  const { harnesses } = loadConfig();
+  const withPath = (kind: "skills" | "instructions") =>
+    harnesses.flatMap((id) => {
+      const p = harnessPath(id, kind);
+      return p ? [{ id, path: expandHome(p) }] : [];
+    });
+  const targets = withPath("skills");
   const bin = desiredLinks(reg).find((l) => l.kind === "bin")!;
 
   console.log(`${c.bold("root")}  ${tildify(paths.root)}`);
@@ -156,21 +162,20 @@ export async function status(): Promise<number> {
 
   console.log(c.bold("Skills"));
   if (reg.skills.length) {
-    const header = ["", ...targets.map((t) => c.dim(harnessFor(t, "skills") ?? tildify(t)))];
+    const header = ["", ...targets.map((t) => c.dim(t.id))];
     const rows = reg.skills.map((s) => [
       s.disabled ? `${s.name} ${c.dim("(disabled)")}` : s.name,
-      ...targets.map((t) => (s.disabled ? c.dim("-") : linkState(`${t}/${s.name}`, s.dir))),
+      ...targets.map((t) => (s.disabled ? c.dim("-") : linkState(`${t.path}/${s.name}`, s.dir))),
     ]);
     console.log(table([header, ...rows]));
   } else console.log(c.dim("  none"));
 
   console.log(`\n${c.bold("Instructions")}  ${c.dim(tildify(paths.instructionsFile))}`);
-  const instructions = instructionLinks();
-  if (instructions.length) {
-    const rows = instructions.map((l) => [
-      c.dim(harnessFor(l.path, "instructions") ?? "custom"),
-      tildify(l.path),
-      linkState(l.path, l.source),
+  if (instructionLinks().length) {
+    const rows = withPath("instructions").map((t) => [
+      c.dim(t.id),
+      tildify(t.path),
+      linkState(t.path, paths.instructionsFile),
     ]);
     console.log(table(rows));
   }

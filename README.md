@@ -30,6 +30,7 @@ Edits take effect immediately. There's no build step; the `rig` launcher runs `s
 | `rig status` | Links per target, instructions links, tools, auth state |
 | `rig remove <name>` / `rig add <name>` | Disable (and unlink) or re-enable a tool/skill |
 | `rig desync [--dry-run]` | Remove every link rig created |
+| `rig config [harnesses <name>...]` | Choose which harnesses to link into (interactive without args), then re-sync |
 | `rig auth [tool] [--status] [--no-verify]` | Interactive credential setup |
 
 `sync` only ever modifies symlinks it created (recorded in `~/.local/state/rig/links.json` and still pointing where rig pointed them). Anything else in a target directory is reported as a conflict and left alone.
@@ -46,23 +47,17 @@ Harness locations are declared once, in `HARNESSES` in `src/core/harnesses.ts`:
 
 Skills and instructions paths are derived from each harness's home, so moving a harness is a one-line change there; the next `rig sync` prunes the old links and creates the new ones. To add a harness, add one entry. `rig status` labels its columns by harness name.
 
-rig links into every harness by default. To choose, list them by name (any case) in `~/.config/rig/config.json`; an unknown name is an error:
+rig links into every harness by default. To choose, run `rig config` for an interactive picker, or `rig config harnesses claude agents` from a script. Either saves the choice and re-syncs. The choice is stored in `~/.config/rig/config.json`, and names match in any case; an unknown name is an error:
 
 ```json
 { "harnesses": ["claude", "agents"] }
 ```
 
-For a location that isn't a harness, `targets` (skills dirs) and `instructionTargets` (instructions files) take raw paths and override the harnesses' own. rig only writes settings you've changed to that file, so defaults keep tracking `HARNESSES`.
+rig only writes settings you've changed to that file, so defaults keep tracking `HARNESSES`. To link somewhere new, add a harness entry.
 
 ## Global instructions
 
-`instructions/AGENTS.md` holds always-on rules for every agent session. `rig sync` symlinks it to every configured harness that declares an instructions file (or to `instructionTargets` in `~/.config/rig/config.json`, if set):
-
-```json
-{ "instructionTargets": ["~/.claude/CLAUDE.md", "~/.codex/AGENTS.md"] }
-```
-
-Those two are the defaults: Claude Code reads `~/.claude/CLAUDE.md`, and Codex reads `~/.codex/AGENTS.md` (it prefers `AGENTS.override.md` if present, and ignores a custom `CODEX_HOME`). To target another harness, add it to `HARNESSES`, or list its user-level instructions path in `instructionTargets`.
+`instructions/AGENTS.md` holds always-on rules for every agent session. `rig sync` symlinks it to every configured harness that declares an instructions file. By default that's two: Claude Code reads `~/.claude/CLAUDE.md`, and Codex reads `~/.codex/AGENTS.md` (it prefers `AGENTS.override.md` if present, and ignores a custom `CODEX_HOME`). To target another harness, add it to `HARNESSES`.
 
 - rig doesn't ship an `instructions/AGENTS.md`; copy `instructions/AGENTS.example.md` to start one. Without it nothing is linked, and deleting it later makes the next `sync` prune the links.
 - Same safety rules as skills: an existing real file or foreign symlink at a target (for example a `CLAUDE.md` you already wrote) is reported as a conflict and left alone. Move its contents into `instructions/AGENTS.md`, delete it, and re-run `rig sync`.

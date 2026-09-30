@@ -1,5 +1,3 @@
-import { expandHome } from "./paths";
-
 /**
  * A coding-agent harness rig links into. `home` is its user-level dir (with `~`); `skills` and
  * `instructions` are paths inside it, present only if the harness reads that kind of file there.
@@ -42,12 +40,4 @@ export function harnessPath(id: HarnessId, kind: HarnessPath): string | undefine
 /** `~`-form paths of each given harness that has `kind`, in the given order. */
 export function harnessPaths(kind: HarnessPath, ids: readonly HarnessId[] = HARNESS_IDS): string[] {
   return ids.flatMap((id) => harnessPath(id, kind) ?? []);
-}
-
-/** Which harness an expanded path belongs to, for display; undefined for custom config paths. */
-export function harnessFor(path: string, kind: HarnessPath): HarnessId | undefined {
-  return HARNESS_IDS.find((id) => {
-    const p = harnessPath(id, kind);
-    return p !== undefined && expandHome(p) === path;
-  });
 }

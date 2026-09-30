@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
 import { auth } from "./builtins/auth";
+import { config } from "./builtins/config";
 import { add, desync, remove, status, sync } from "./builtins/links";
 import { ls, schema } from "./builtins/ls";
 import { newCmd } from "./builtins/new";
@@ -18,6 +19,7 @@ const BUILTINS: Record<string, (argv: string[]) => Promise<number>> = {
   desync,
   status,
   auth,
+  config,
   new: newCmd,
 };
 
@@ -36,6 +38,7 @@ ${c.bold("Sync")}
   rig remove <name>          Unlink and disable a skill/tool
   rig add <name>             Re-enable a removed skill/tool
   rig desync [--dry-run]     Remove every link rig created
+  rig config                 Choose harnesses interactively (or: rig config harnesses <name>...)
 
 ${c.bold("Auth")}
   rig auth [tool]            Interactively set up credentials

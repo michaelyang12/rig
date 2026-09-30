@@ -75,17 +75,15 @@ describe("sync", () => {
     expect(isLinkTo(join(sb.claude, "alpha"), join(moved, "skills", "alpha"))).toBe(true);
   });
 
-  test("moves links when a skills target moves", async () => {
-    // Same path change a new harness home would cause: old links pruned, new ones created.
+  test("dropping a harness prunes its links and keeps the rest", async () => {
+    // Same path change a harness move causes: unwanted links pruned, wanted ones untouched.
     await sb.run(["sync"]);
-    const moved = join(sb.home, "moved-skills");
-    writeConfig({ targets: ["~/moved-skills"] });
+    writeConfig({ harnesses: ["claude"] });
     const { code, stdout } = await sb.run(["sync"]);
     expect(code).toBe(0);
-    expect(stdout).toContain("- alpha → " + sb.claude.replace(sb.home, "~") + "/alpha");
-    expect(existsSync(join(sb.claude, "alpha"))).toBe(false);
+    expect(stdout).toContain("- alpha → ~/.agents/skills/alpha");
     expect(existsSync(join(sb.agents, "alpha"))).toBe(false);
-    expect(isLinkTo(join(moved, "alpha"), join(sb.root, "skills", "alpha"))).toBe(true);
+    expect(isLinkTo(join(sb.claude, "alpha"), join(sb.root, "skills", "alpha"))).toBe(true);
   });
 
   test("links only the harnesses named in config, in any case", async () => {
@@ -252,16 +250,6 @@ describe("instructions", () => {
     expect(existsSync(codexMd())).toBe(false);
   });
 
-  test("honors instructionTargets from config", async () => {
-    writeSource();
-    const custom = join(sb.home, "custom", "AGENTS.md");
-    writeConfig({ instructionTargets: ["~/custom/AGENTS.md"] });
-    await sb.run(["sync"]);
-    expect(isLinkTo(custom, source())).toBe(true);
-    expect(existsSync(claudeMd())).toBe(false);
-    expect((await sb.run(["status"])).stdout).toMatch(/custom\s+~\/custom\/AGENTS\.md\s+linked/);
-  });
-
   test("status and desync", async () => {
     writeSource();
     await sb.run(["sync"]);
@@ -270,5 +258,39 @@ describe("instructions", () => {
     expect(existsSync(claudeMd())).toBe(false);
     expect(existsSync(codexMd())).toBe(false);
     expect(existsSync(source())).toBe(true);
+  });
+});
+
+describe("config", () => {
+  test("prints harnesses without a terminal", async () => {
+    writeConfig({ harnesses: ["claude"] });
+    const { code, stdout } = await sb.run(["config"]);
+    expect(code).toBe(0);
+    expect(stdout).toMatch(/claude\s+on/);
+    expect(stdout).toMatch(/codex\s+off/);
+    expect(stdout).toContain("rig config harnesses <name>");
+  });
+
+  test("harnesses <names> saves and syncs", async () => {
+    await sb.run(["sync"]);
+    const { code, stdout } = await sb.run(["config", "harnesses", "CLAUDE", "codex"]);
+    expect(code).toBe(0);
+    expect(stdout).toContain("- alpha → ~/.agents/skills/alpha");
+    expect(JSON.parse(readFileSync(configFile(), "utf8"))).toEqual({ harnesses: ["claude", "codex"] });
+    expect(existsSync(join(sb.agents, "alpha"))).toBe(false);
+    expect(existsSync(join(sb.claude, "alpha"))).toBe(true);
+  });
+
+  test("selecting every harness stores nothing", async () => {
+    await sb.run(["config", "harnesses", "agents", "claude", "codex"]);
+    expect(JSON.parse(readFileSync(configFile(), "utf8"))).toEqual({});
+  });
+
+  test("rejects bad input without saving", async () => {
+    for (const args of [["harnesses", "cladue"], ["harnesses"], ["targets"]]) {
+      const { code } = await sb.run(["config", ...args]);
+      expect(code).toBe(2);
+    }
+    expect(existsSync(configFile())).toBe(false);
   });
 });
