@@ -1,3 +1,4 @@
+// @module Renders the generated rig-entryexec skill from the registry; its description is how agents discover tools.
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { paths } from "./paths";

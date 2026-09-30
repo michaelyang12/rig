@@ -1,3 +1,4 @@
+// @module Runs a resolved command: checks auth, then calls a TS tool in-process or spawns an external one (args as JSON on stdin).
 import { join } from "node:path";
 import { RigError, type Context } from "../sdk";
 import { parseArgv, renderHelp } from "./args";

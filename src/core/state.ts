@@ -1,3 +1,4 @@
+// @module links.json: the record of every symlink rig created, which is what makes sync safe to rerun.
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { paths } from "./paths";
 

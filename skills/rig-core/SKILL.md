@@ -22,19 +22,14 @@ description: Use when adding, changing, debugging, or refactoring the user's `ri
 | `tools/<name>/tool.json` + entry | A non-TS tool (`runtime: uv \| python \| bin`) |
 | `skills/<name>/SKILL.md` | A skill, synced to every harness |
 | `skills/rig-entryexec/` | **Generated** by `rig sync` from the tool registry. Gitignored. Never edit it. |
+| `src/core/*.ts` | Internals: registry, dispatch, sync, config, paths. See below. |
 | `src/sdk/index.ts` | Public API tools import as `"rig"`: `defineTool`, `defineCommand`, `request`, `bearer`, `basicAuth`, `RigError`, `apiKeyVar` |
-| `src/core/registry.ts` | Discovers and validates tools and skills; enforces names and the auth convention |
-| `src/core/args.ts` | JSON-Schema-driven flag parsing and `--help` |
-| `src/core/dispatch.ts` | Runs TS tools in-process; spawns external tools with args on stdin |
-| `instructions/AGENTS.md` | Global always-on instructions, linked to each harness's instructions file Not a skill. |
-| `src/core/harnesses.ts` | `HARNESSES`: the only place harness dirs (`~/.claude`, `~/.codex`, `~/.agents`) and their skills/instructions paths are declared. `agents` (`~/.agents/skills`) is `always` linked; config `harnesses` (names, any case; set with `rig config`) picks the rest. Never link skills into `~/.codex/skills`: Codex also reads `~/.agents/skills` and would list each skill twice. |
-| `src/core/links.ts` | Symlink sync with ownership tracking |
-| `src/core/instructions.ts` | Desired links for global instructions (fed into `links.ts`) |
-| `src/core/entry.ts` | Renders the `rig-entryexec` skill |
-| `src/core/generated.ts` | Writes tools' `skillFiles()` output into `skills/<tool>/` on sync |
-| `src/core/env.ts` | Reads and writes `~/.config/rig/.env` (0600) |
+| `instructions/AGENTS.md` | Global always-on instructions, linked to each harness's instructions file. Not a skill. |
+| `src/builtins/index.ts` | `BUILTINS` table. A new built-in must also go in `RESERVED` (`registry.ts`) and be named in this skill; `test/rig-core.test.ts` enforces both |
 | `src/builtins/*` | `sync`, `remove`, `add`, `desync`, `status`, `config`, `ls`, `schema`, `auth`, `new` |
 | `test/` | `bun test`, fully sandboxed (temp HOME plus a copy of `test/fixtures`) |
+
+**Before changing anything in `src/core/`, read the module headers:** `grep -rn '^// @module ' src`. Every core module's first line is a `// @module <what it owns>` header, and that list is always current, so it's the map of the internals. When you add a module, start it with one in the same style. When a module's role changes, update its header.
 
 ## Adding a tool
 
@@ -77,6 +72,7 @@ description: Use when adding, changing, debugging, or refactoring the user's `ri
 - **Sync safety:** rig only modifies a path if it's recorded in `~/.local/state/rig/links.json` *and* is still a symlink to the recorded source. Keep that invariant; tests in `test/sync.test.ts` cover it.
 - **Paths:** every location can be overridden (`RIG_ROOT`, `RIG_CONFIG_DIR`, `RIG_STATE_DIR`, `RIG_BIN_DIR`). Use `paths` from `src/core/paths.ts` rather than hardcoding. Harness dirs come only from `HARNESSES` in `src/core/harnesses.ts`; never write `~/.claude` etc. elsewhere in `src/` or test setup (tests use `sb.harness(id, kind)`).
 - **Config:** `saveConfig` writes only fields that differ from the defaults, so a default change in `HARNESSES` reaches users who have a `config.json`.
+- **Module headers:** every `src/core/*.ts` starts with a one-line `// @module <what it owns>` header (the `@module ` prefix is what the lookup greps for, so keep it exact; `test/rig-core.test.ts` fails without it). A new core file must start with one. If a change alters what a module owns or guarantees (not just its internals), update its header in the same change.
 - There's no build step. The `rig` launcher runs `src/cli.ts` with bun, so edits are live immediately.
 
 ## Before finishing
@@ -84,5 +80,7 @@ description: Use when adding, changing, debugging, or refactoring the user's `ri
 ```sh
 bun run typecheck && bun test && rig sync && rig ls
 ```
+
+If you added or reshaped a `src/core` module, check `grep -rn '^// @module ' src` still describes each one accurately.
 
 Commit only when the user asks. `skills/rig-entryexec/` is gitignored, so never commit it.

@@ -1,3 +1,4 @@
+// @module Terminal helpers for built-ins: colors (NO_COLOR-aware), tables, simple flag parsing.
 import { RigError } from "../sdk";
 
 const enabled = process.stdout.isTTY && !process.env.NO_COLOR;

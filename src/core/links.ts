@@ -1,3 +1,4 @@
+// @module Symlink sync. Only touches links recorded in state.ts that still point where rig pointed them; everything else is a conflict.
 import { lstatSync, mkdirSync, readlinkSync, symlinkSync, unlinkSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { loadConfig, targetDirs } from "./config";

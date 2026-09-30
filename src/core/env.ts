@@ -1,3 +1,4 @@
+// @module Reads and writes ~/.config/rig/.env (0600). Shell env always wins over the file.
 import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { paths } from "./paths";
 
