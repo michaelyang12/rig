@@ -28,7 +28,8 @@ describe("sync", () => {
     await sb.run(["sync"]);
     const { code, stdout } = await sb.run(["sync"]);
     expect(code).toBe(0);
-    expect(stdout).toContain("5 link(s) already up to date");
+    expect(stdout).toContain("7 link(s) already up to date");
+    expect(stdout).not.toContain("regenerated");
     expect(stdout).not.toContain("+ ");
   });
 

@@ -156,7 +156,12 @@ export async function parseArgv(argv: string[], schema: JSONSchema, positional: 
 export function renderHelp(command: string, description: string, schema: JSONSchema, positional: string[]): string {
   const props = schema.properties ?? {};
   const required = new Set(schema.required ?? []);
-  const pos = positional.map((p) => (required.has(p) ? `<${kebab(p)}>` : `[${kebab(p)}]`)).join(" ");
+  const pos = positional
+    .map((p) => {
+      const label = kebab(p) + (typeOf(props[p]) === "array" ? "..." : "");
+      return required.has(p) ? `<${label}>` : `[${label}]`;
+    })
+    .join(" ");
   const lines = [`Usage: rig ${command}${pos ? " " + pos : ""} [flags]`, "", description, ""];
 
   const rows = Object.entries(props).map(([key, prop]) => {

@@ -1,0 +1,32 @@
+#!/bin/bash
+# Pick a blueprint with fzf and start a Claude session to build it.
+# Human-facing counterpart to `rig blueprint-*`; symlink it onto PATH (e.g. ~/bin/blueprint).
+set -euo pipefail
+
+PICK=$(rig blueprint-ls | fzf \
+  --delimiter=$'\t' --with-nth=1 \
+  --preview-window=right:70% \
+  --preview 'glow --style=dark {2}') || exit 0
+
+NAME=${PICK%%$'\t'*}
+FILE=${PICK#*$'\t'}
+
+echo ""
+echo "Selected: $NAME"
+echo "Enter instruction (or press Enter for default):"
+read -r INSTRUCTION
+
+if [ -z "$INSTRUCTION" ]; then
+  INSTRUCTION="Here's a project blueprint I want to implement. Read it, then help me plan and build it."
+fi
+
+CONTENT=$(cat "$FILE")
+
+cd ~/Source || exit 1
+exec claude "$INSTRUCTION
+
+Blueprint file: $FILE
+
+---
+
+$CONTENT"
