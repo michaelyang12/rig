@@ -27,7 +27,7 @@ description: Use when adding, changing, debugging, or refactoring the user's `ri
 | `src/core/args.ts` | JSON-Schema-driven flag parsing and `--help` |
 | `src/core/dispatch.ts` | Runs TS tools in-process; spawns external tools with args on stdin |
 | `instructions/AGENTS.md` | Global always-on instructions, linked to each harness's instructions file Not a skill. |
-| `src/core/harnesses.ts` | `HARNESSES`: the only place harness dirs (`~/.claude`, `~/.codex`, `~/.agents`) and their skills/instructions paths are declared. Config `harnesses` (names, any case; set with `rig config`) picks which to link. |
+| `src/core/harnesses.ts` | `HARNESSES`: the only place harness dirs (`~/.claude`, `~/.codex`, `~/.agents`) and their skills/instructions paths are declared. `agents` (`~/.agents/skills`) is `always` linked; config `harnesses` (names, any case; set with `rig config`) picks the rest. Never link skills into `~/.codex/skills`: Codex also reads `~/.agents/skills` and would list each skill twice. |
 | `src/core/links.ts` | Symlink sync with ownership tracking |
 | `src/core/instructions.ts` | Desired links for global instructions (fed into `links.ts`) |
 | `src/core/entry.ts` | Renders the `rig-entryexec` skill |

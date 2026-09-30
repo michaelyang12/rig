@@ -30,7 +30,7 @@ Edits take effect immediately. There's no build step; the `rig` launcher runs `s
 | `rig status` | Links per target, instructions links, tools, auth state |
 | `rig remove <name>` / `rig add <name>` | Disable (and unlink) or re-enable a tool/skill |
 | `rig desync [--dry-run]` | Remove every link rig created |
-| `rig config [harnesses <name>...]` | Choose which harnesses to link into (interactive without args), then re-sync |
+| `rig config [harnesses <name>... \| none]` | Choose which harnesses to link into besides `~/.agents` (interactive without args), then re-sync |
 | `rig auth [tool] [--status] [--no-verify]` | Interactive credential setup |
 
 `sync` only ever modifies symlinks it created (recorded in `~/.local/state/rig/links.json` and still pointing where rig pointed them). Anything else in a target directory is reported as a conflict and left alone.
@@ -43,14 +43,16 @@ Harness locations are declared once, in `HARNESSES` in `src/core/harnesses.ts`:
 |---|---|---|---|
 | `claude` | `~/.claude` | `skills/` | `CLAUDE.md` |
 | `codex` | `~/.codex` | (reads `~/.agents/skills`) | `AGENTS.md` |
-| `agents` | `~/.agents` | `skills/` | |
+| `agents` (always linked) | `~/.agents` | `skills/` | |
+
+`~/.agents/skills` is the cross-agent skills location that Codex and many third-party harnesses read, so rig always links into it. Codex also still scans its deprecated `~/.codex/skills`, and a skill in both shows up twice, so rig deliberately doesn't link there.
 
 Skills and instructions paths are derived from each harness's home, so moving a harness is a one-line change there; the next `rig sync` prunes the old links and creates the new ones. To add a harness, add one entry. `rig status` labels its columns by harness name.
 
-rig links into every harness by default. To choose, run `rig config` for an interactive picker, or `rig config harnesses claude agents` from a script. Either saves the choice and re-syncs. The choice is stored in `~/.config/rig/config.json`, and names match in any case; an unknown name is an error:
+The other harnesses are on by default. To choose, run `rig config` for an interactive picker, or `rig config harnesses claude` (or `none`) from a script. Either saves the choice and re-syncs. The choice is stored in `~/.config/rig/config.json`, and names match in any case; an unknown name is an error:
 
 ```json
-{ "harnesses": ["claude", "agents"] }
+{ "harnesses": ["claude"] }
 ```
 
 rig only writes settings you've changed to that file, so defaults keep tracking `HARNESSES`. To link somewhere new, add a harness entry.

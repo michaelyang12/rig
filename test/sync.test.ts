@@ -78,23 +78,31 @@ describe("sync", () => {
   test("dropping a harness prunes its links and keeps the rest", async () => {
     // Same path change a harness move causes: unwanted links pruned, wanted ones untouched.
     await sb.run(["sync"]);
-    writeConfig({ harnesses: ["claude"] });
+    writeConfig({ harnesses: ["codex"] });
     const { code, stdout } = await sb.run(["sync"]);
     expect(code).toBe(0);
-    expect(stdout).toContain("- alpha → ~/.agents/skills/alpha");
-    expect(existsSync(join(sb.agents, "alpha"))).toBe(false);
-    expect(isLinkTo(join(sb.claude, "alpha"), join(sb.root, "skills", "alpha"))).toBe(true);
+    expect(stdout).toContain("- alpha → ~/.claude/skills/alpha");
+    expect(existsSync(join(sb.claude, "alpha"))).toBe(false);
+    expect(isLinkTo(join(sb.agents, "alpha"), join(sb.root, "skills", "alpha"))).toBe(true);
   });
 
-  test("links only the harnesses named in config, in any case", async () => {
-    writeConfig({ harnesses: ["Claude", "CODEX"] });
+  test("links the harnesses named in config, in any case, plus the always-on ones", async () => {
+    writeConfig({ harnesses: ["CODEX"] });
     mkdirSync(join(sb.root, "instructions"), { recursive: true });
     writeFileSync(join(sb.root, "instructions", "AGENTS.md"), "# rules\n");
     const { code } = await sb.run(["sync"]);
     expect(code).toBe(0);
-    expect(isLinkTo(join(sb.claude, "alpha"), join(sb.root, "skills", "alpha"))).toBe(true);
-    expect(existsSync(sb.agents)).toBe(false);
+    expect(isLinkTo(join(sb.agents, "alpha"), join(sb.root, "skills", "alpha"))).toBe(true);
     expect(lstatSync(sb.harness("codex", "instructions")).isSymbolicLink()).toBe(true);
+    expect(existsSync(sb.claude)).toBe(false);
+    expect(existsSync(sb.harness("claude", "instructions"))).toBe(false);
+  });
+
+  test("an empty harness list still links the always-on ones", async () => {
+    writeConfig({ harnesses: [] });
+    expect((await sb.run(["sync"])).code).toBe(0);
+    expect(isLinkTo(join(sb.agents, "alpha"), join(sb.root, "skills", "alpha"))).toBe(true);
+    expect(existsSync(sb.claude)).toBe(false);
   });
 
   test("rejects an unknown harness name", async () => {
@@ -102,7 +110,7 @@ describe("sync", () => {
     const { code, stderr } = await sb.run(["sync"]);
     expect(code).toBe(2);
     expect(stderr).toContain('unknown harness "cladue"');
-    expect(stderr).toContain("valid: claude, codex, agents");
+    expect(stderr).toContain("valid: claude, codex (always linked: agents)");
   });
 
   test("status labels targets by harness", async () => {
@@ -268,17 +276,26 @@ describe("config", () => {
     expect(code).toBe(0);
     expect(stdout).toMatch(/claude\s+on/);
     expect(stdout).toMatch(/codex\s+off/);
+    expect(stdout).toMatch(/agents\s+always/);
     expect(stdout).toContain("rig config harnesses <name>");
   });
 
   test("harnesses <names> saves and syncs", async () => {
     await sb.run(["sync"]);
-    const { code, stdout } = await sb.run(["config", "harnesses", "CLAUDE", "codex"]);
+    const { code, stdout } = await sb.run(["config", "harnesses", "CODEX"]);
     expect(code).toBe(0);
-    expect(stdout).toContain("- alpha → ~/.agents/skills/alpha");
-    expect(JSON.parse(readFileSync(configFile(), "utf8"))).toEqual({ harnesses: ["claude", "codex"] });
-    expect(existsSync(join(sb.agents, "alpha"))).toBe(false);
-    expect(existsSync(join(sb.claude, "alpha"))).toBe(true);
+    expect(stdout).toContain("- alpha → ~/.claude/skills/alpha");
+    expect(JSON.parse(readFileSync(configFile(), "utf8"))).toEqual({ harnesses: ["codex"] });
+    expect(existsSync(join(sb.claude, "alpha"))).toBe(false);
+    expect(existsSync(join(sb.agents, "alpha"))).toBe(true);
+  });
+
+  test("harnesses none keeps only the always-on ones", async () => {
+    await sb.run(["sync"]);
+    expect((await sb.run(["config", "harnesses", "none"])).code).toBe(0);
+    expect(JSON.parse(readFileSync(configFile(), "utf8"))).toEqual({ harnesses: [] });
+    expect(existsSync(join(sb.claude, "alpha"))).toBe(false);
+    expect(existsSync(join(sb.agents, "alpha"))).toBe(true);
   });
 
   test("selecting every harness stores nothing", async () => {

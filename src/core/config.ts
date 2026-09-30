@@ -1,27 +1,30 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { RigError } from "../sdk";
-import { HARNESS_IDS, harnessPaths, parseHarnessId, type HarnessId } from "./harnesses";
+import { ALWAYS_HARNESS_IDS, HARNESS_IDS, OPTIONAL_HARNESS_IDS, harnessPaths, parseHarnessId, type HarnessId } from "./harnesses";
 import { expandHome, paths } from "./paths";
 
 export interface Config {
-  /** Harnesses to link into (names from HARNESSES, any case). Defaults to all of them. */
+  /** Optional harnesses to link into (names from HARNESSES, any case). Defaults to all of them. */
   harnesses: HarnessId[];
   /** Tool/skill names excluded from sync and dispatch (set by `rig remove`). */
   disabled: string[];
 }
 
-const defaults = (): Config => ({ harnesses: [...HARNESS_IDS], disabled: [] });
+const defaults = (): Config => ({ harnesses: [...OPTIONAL_HARNESS_IDS], disabled: [] });
 
-/** Resolves harness names (any case) to ids; throws a usage error naming the valid ones. */
+/**
+ * Resolves harness names (any case) to optional harness ids, in declaration order. Always-on
+ * names are accepted and dropped; unknown names are a usage error naming the valid ones.
+ */
 export function parseHarnesses(names: unknown, where = `in ${paths.configFile}`): HarnessId[] {
-  const valid = HARNESS_IDS.join(", ");
+  const valid = `${OPTIONAL_HARNESS_IDS.join(", ")} (always linked: ${ALWAYS_HARNESS_IDS.join(", ")})`;
   if (!Array.isArray(names)) throw new RigError("USAGE", `"harnesses" must be a list of names ${where}`, `valid: ${valid}`);
   const ids = names.map((name) => {
     const id = typeof name === "string" ? parseHarnessId(name) : undefined;
     if (!id) throw new RigError("USAGE", `unknown harness ${JSON.stringify(name)} ${where}`, `valid: ${valid}`);
     return id;
   });
-  return HARNESS_IDS.filter((id) => ids.includes(id)); // declaration order, deduped
+  return OPTIONAL_HARNESS_IDS.filter((id) => ids.includes(id));
 }
 
 export function loadConfig(): Config {
@@ -46,12 +49,17 @@ export function saveConfig(config: Config): void {
   writeFileSync(paths.configFile, JSON.stringify(stored, null, 2) + "\n");
 }
 
-/** Skills dirs of the configured harnesses. */
-export function targetDirs(config: Config): string[] {
-  return harnessPaths("skills", config.harnesses).map(expandHome);
+/** Harnesses rig links into: the always-on ones plus those config chose, in declaration order. */
+export function activeHarnesses(config: Config): HarnessId[] {
+  return HARNESS_IDS.filter((id) => ALWAYS_HARNESS_IDS.includes(id) || config.harnesses.includes(id));
 }
 
-/** Instructions files of the configured harnesses. */
+/** Skills dirs of the active harnesses. */
+export function targetDirs(config: Config): string[] {
+  return harnessPaths("skills", activeHarnesses(config)).map(expandHome);
+}
+
+/** Instructions files of the active harnesses. */
 export function instructionPaths(config: Config): string[] {
-  return harnessPaths("instructions", config.harnesses).map(expandHome);
+  return harnessPaths("instructions", activeHarnesses(config)).map(expandHome);
 }

@@ -1,4 +1,4 @@
-import { loadConfig, saveConfig } from "../core/config";
+import { activeHarnesses, loadConfig, saveConfig } from "../core/config";
 import { ENTRY_SKILL, writeEntrySkill } from "../core/entry";
 import { writeSkillFiles } from "../core/generated";
 import { lookupVar, readEnvFile } from "../core/env";
@@ -148,7 +148,7 @@ function linkState(path: string, source: string): string {
 
 export async function status(): Promise<number> {
   const reg = await loadRegistry();
-  const { harnesses } = loadConfig();
+  const harnesses = activeHarnesses(loadConfig());
   const withPath = (kind: "skills" | "instructions") =>
     harnesses.flatMap((id) => {
       const p = harnessPath(id, kind);
