@@ -43,6 +43,10 @@ export const paths = {
   get stateFile() {
     return join(this.stateDir, "links.json");
   },
+  /** Per-pack dependency install stamps. */
+  get packsStateFile() {
+    return join(this.stateDir, "packs.json");
+  },
   get binDir() {
     return process.env.RIG_BIN_DIR ?? join(home(), ".local", "bin");
   },

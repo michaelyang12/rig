@@ -26,7 +26,7 @@ description: Use when adding, changing, debugging, or refactoring the user's `ri
 | `src/sdk/index.ts` | Public API tools import as `"rig"`: `defineTool`, `defineCommand`, `request`, `bearer`, `basicAuth`, `RigError`, `apiKeyVar` |
 | `instructions/AGENTS.md` | Global always-on instructions, linked to each harness's instructions file. Not a skill. |
 | `src/builtins/index.ts` | `BUILTINS` table. A new built-in must also go in `RESERVED` (`registry.ts`) and be named in this skill; `test/rig-core.test.ts` enforces both |
-| `src/builtins/*` | `sync`, `remove`, `add`, `desync`, `status`, `config`, `ls`, `schema`, `auth`, `new` |
+| `src/builtins/*` | `sync`, `remove`, `add`, `desync`, `status`, `config`, `ls`, `schema`, `auth`, `new`, `pack` |
 | `test/` | `bun test`, fully sandboxed (temp HOME plus a copy of `test/fixtures`) |
 
 **Before changing anything in `src/core/`, read the module headers:** `grep -rn '^// @module ' src`. Every core module's first line is a `// @module <what it owns>` header, and that list is always current, so it's the map of the internals. When you add a module, start it with one in the same style. When a module's role changes, update its header.

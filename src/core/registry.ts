@@ -4,10 +4,11 @@ import { join } from "node:path";
 import { z } from "zod";
 import { apiKeyVar, envPrefix, type AuthVar, type CommandDef, type Context, type ToolDef } from "../sdk";
 import { loadConfig, type Config } from "./config";
+import { depsStale, peerMismatch } from "./deps";
 import { CORE_PACK, discoverPacks, NAME_RE, subdirs, type Pack } from "./packs";
 import { installResolver } from "./resolve";
 
-export const RESERVED = ["sync", "remove", "add", "desync", "ls", "status", "auth", "config", "schema", "new", "help"];
+export const RESERVED = ["sync", "remove", "add", "desync", "ls", "status", "auth", "config", "schema", "new", "pack", "help"];
 /** A tool's description is its line in `rig ls`; the cap keeps that index cheap for agents to read. */
 export const TOOL_DESCRIPTION_MAX = 300;
 
@@ -215,7 +216,10 @@ export async function loadRegistry(override?: Config): Promise<Registry> {
   const tools: ResolvedTool[] = [];
   const skills: Skill[] = [];
   for (const pack of packs) {
-    tools.push(...(await loadTools(pack, problems)));
+    if (depsStale(pack)) problems.push(`pack ${pack.name}: dependencies changed; run rig sync`);
+    const mismatch = peerMismatch(pack);
+    if (mismatch) problems.push(`pack ${pack.name}: ${mismatch}; its tools don't load`);
+    else tools.push(...(await loadTools(pack, problems)));
     skills.push(...loadSkills(pack, problems));
   }
   for (const item of [...tools, ...skills]) item.disabled = isDisabled(config.disabled, item.pack, item.name);

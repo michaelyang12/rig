@@ -1,5 +1,7 @@
 import { activeHarnesses, loadConfig, saveConfig, type Config } from "../core/config";
+import { depsStale, installDeps } from "../core/deps";
 import { writeSkillFiles } from "../core/generated";
+import { discoverPacks } from "../core/packs";
 import { lookupVar, readEnvFile } from "../core/env";
 import { harnessPath } from "../core/harnesses";
 import { instructionLinks } from "../core/instructions";
@@ -31,6 +33,22 @@ function printChanges(changes: LinkChange[], dryRun: boolean): void {
   if (unchanged) console.log(c.dim(`  ${unchanged} link(s) already up to date`));
 }
 
+/** Runs before the registry loads, so tools import freshly installed packages. */
+async function installStaleDeps(dryRun: boolean): Promise<{ installed: string[]; problems: string[] }> {
+  const installed: string[] = [];
+  const problems: string[] = [];
+  for (const pack of discoverPacks(loadConfig()).packs) {
+    if (!depsStale(pack)) continue;
+    try {
+      if (!dryRun) await installDeps(pack);
+      installed.push(pack.name);
+    } catch (err) {
+      problems.push(`pack ${pack.name}: ${(err as Error).message}`);
+    }
+  }
+  return { installed, problems };
+}
+
 export function missingAuth(tool: ResolvedTool, file = readEnvFile()): string[] {
   return tool.auth.filter((v) => !v.optional && !lookupVar(v.name, file)).map((v) => v.name);
 }
@@ -44,13 +62,16 @@ function printProblems(reg: Registry): void {
 export async function sync(argv: string[]): Promise<number> {
   const { flags } = takeFlags(argv, ["--dry-run"]);
   const dryRun = flags.has("--dry-run");
+  const installs = await installStaleDeps(dryRun);
   const reg = await loadRegistry();
+  reg.problems.push(...installs.problems);
   const generated = await writeSkillFiles(reg, { dryRun });
   const changes = syncLinks(reg, { dryRun });
 
   const tools = reg.tools.filter(isActive);
   const skills = reg.skills.filter(isActive);
   console.log(c.bold(`rig: ${tools.length} tool(s), ${reg.qualified.size} command(s), ${skills.length} skill(s)`));
+  for (const name of installs.installed) console.log(`  ${dryRun ? c.dim("(dry run) ") : ""}${c.yellow("~")} installed dependencies for pack ${name}`);
   for (const rel of generated) console.log(`  ${dryRun ? c.dim("(dry run) ") : ""}${c.yellow("~")} regenerated ${rel}`);
   printChanges(changes, dryRun);
   printProblems(reg);
