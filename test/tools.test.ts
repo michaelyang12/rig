@@ -155,7 +155,7 @@ describe("auth", () => {
 describe("new", () => {
   test("scaffolded TS tools with auth load and follow the key convention", async () => {
     expect((await sb.run(["new", "tool", "wiki", "--auth"])).code).toBe(0);
-    expect(readFileSync(join(sb.root, "skills", "wiki", "SKILL.md"), "utf8")).toContain("rig auth wiki");
+    expect(readFileSync(join(sb.user, "skills", "wiki", "SKILL.md"), "utf8")).toContain("rig auth wiki");
     const status = await sb.run(["auth", "wiki", "--status"]);
     expect(status.stdout).toContain("✗ WIKI_API_KEY");
     expect(status.stdout).toContain("✗ WIKI_BASE_URL");
@@ -169,7 +169,7 @@ describe("new", () => {
 
   test("scaffolded uv tools run through uv", async () => {
     await sb.run(["new", "tool", "pyhey", "--uv"]);
-    expect(statSync(join(sb.root, "tools", "pyhey", "main.py")).isFile()).toBe(true);
+    expect(statSync(join(sb.user, "tools", "pyhey", "main.py")).isFile()).toBe(true);
     const r = await sb.run(["pyhey", "zed"]);
     expect(JSON.parse(r.stdout)).toEqual({ message: "hello zed" });
   }, 30_000);

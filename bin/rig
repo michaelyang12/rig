@@ -9,4 +9,4 @@ while [ -L "$src" ]; do
 done
 root="$(cd -P "$(dirname "$src")/.." && pwd)"
 bun="$(command -v bun || echo "$HOME/.bun/bin/bun")"
-exec "$bun" "$root/src/cli.ts" "$@"
+exec "$bun" --no-install "$root/src/cli.ts" "$@"

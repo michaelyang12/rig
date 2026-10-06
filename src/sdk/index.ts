@@ -1,5 +1,7 @@
-// Public SDK for rig tools. Tools import from "rig" (a tsconfig path alias to this file).
+// Public SDK for rig tools. Tools import from "rig", which src/core/resolve.ts maps to this file at runtime.
 import type { z } from "zod";
+
+export { z } from "zod";
 
 export type ErrorCode = "USAGE" | "AUTH" | "NOT_FOUND" | "UPSTREAM" | "INTERNAL";
 

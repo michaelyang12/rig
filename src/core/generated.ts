@@ -1,17 +1,25 @@
-// @module Writes tools' skillFiles() output into skills/<tool>/ during sync.
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+// @module Writes tools' skillFiles() output into <pack>/skills/<tool>/ during sync.
+import { accessSync, constants, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
-import { paths } from "./paths";
-import type { Registry } from "./registry";
+import { isActive, type Registry } from "./registry";
+
+function writable(dir: string): boolean {
+  try {
+    accessSync(dir, constants.W_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 /**
- * Write each enabled tool's `skillFiles()` into `skills/<tool>/`. Only writes files whose content changed.
- * Returns the paths (relative to skills/) written or, on a dry run, that would be; problems go to `reg.problems`.
+ * Write each enabled tool's `skillFiles()` into `skills/<tool>/` of the tool's own pack. Only writes files
+ * whose content changed. Returns the paths (`<pack>/skills/<tool>/<file>`) written or, on a dry run, that would be; problems go to `reg.problems`.
  */
 export async function writeSkillFiles(reg: Registry, { dryRun = false } = {}): Promise<string[]> {
   const written: string[] = [];
   for (const tool of reg.tools) {
-    if (tool.disabled || !tool.skillFiles) continue;
+    if (!isActive(tool) || !tool.skillFiles) continue;
     let files: Record<string, string | undefined>;
     try {
       files = await tool.skillFiles();
@@ -19,7 +27,7 @@ export async function writeSkillFiles(reg: Registry, { dryRun = false } = {}): P
       reg.problems.push(`tool ${tool.name}: skillFiles failed: ${(err as Error).message}`);
       continue;
     }
-    const dir = join(paths.skills, tool.name);
+    const dir = join(tool.pack.dir, "skills", tool.name);
     if (!existsSync(join(dir, "SKILL.md"))) {
       reg.problems.push(`tool ${tool.name}: skillFiles needs skills/${tool.name}/SKILL.md to write into`);
       continue;
@@ -32,11 +40,15 @@ export async function writeSkillFiles(reg: Registry, { dryRun = false } = {}): P
         continue;
       }
       if (existsSync(file) && readFileSync(file, "utf8") === content) continue;
+      if (!writable(dir)) {
+        reg.problems.push(`tool ${tool.name}: pack ${tool.pack.name} isn't writable, so skillFiles were not written to skills/${tool.name}/`);
+        break;
+      }
       if (!dryRun) {
         mkdirSync(dirname(file), { recursive: true });
         writeFileSync(file, content);
       }
-      written.push(relative(paths.skills, file));
+      written.push(join(tool.pack.name, relative(tool.pack.dir, file)));
     }
   }
   return written;

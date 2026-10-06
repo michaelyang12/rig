@@ -4,7 +4,7 @@ import { dirname, join, resolve } from "node:path";
 import { loadConfig, targetDirs } from "./config";
 import { instructionLinks } from "./instructions";
 import { paths } from "./paths";
-import type { Registry } from "./registry";
+import { isActive, type Registry } from "./registry";
 import { loadState, saveState, type LinkRecord } from "./state";
 
 export type LinkAction = "created" | "repaired" | "pruned" | "unchanged" | "conflict";
@@ -46,7 +46,7 @@ export function desiredLinks(registry: Registry): LinkRecord[] {
   const links: LinkRecord[] = [{ path: join(paths.binDir, "rig"), source: paths.shim, kind: "bin", name: "rig" }];
   for (const target of targetDirs(config)) {
     for (const skill of registry.skills) {
-      if (skill.disabled) continue;
+      if (!isActive(skill)) continue;
       links.push({ path: join(target, skill.name), source: skill.dir, kind: "skill", name: skill.name });
     }
   }

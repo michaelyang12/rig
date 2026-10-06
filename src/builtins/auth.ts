@@ -1,7 +1,7 @@
 import { lookupVar, readEnvFile, upsertEnvFile } from "../core/env";
 import { makeContext, resolveAuth, spawnExternal } from "../core/dispatch";
 import { paths, tildify } from "../core/paths";
-import { loadRegistry, type ResolvedTool } from "../core/registry";
+import { isActive, loadRegistry, type ResolvedTool } from "../core/registry";
 import { c, takeFlags } from "../core/ui";
 import { RigError } from "../sdk";
 
@@ -40,11 +40,11 @@ export async function auth(argv: string[]): Promise<number> {
   const { flags, rest } = takeFlags(argv, ["--status", "--no-verify"]);
   const [name] = rest;
   const reg = await loadRegistry();
-  const withAuth = reg.tools.filter((t) => !t.disabled && t.auth.length);
+  const withAuth = reg.tools.filter((t) => isActive(t) && t.auth.length);
 
   let tools = withAuth;
   if (name) {
-    const tool = reg.tools.find((t) => t.name === name);
+    const tool = reg.tools.find((t) => isActive(t) && (t.name === name || `${t.pack.name}:${t.name}` === name));
     if (!tool) throw new RigError("NOT_FOUND", `no tool named ${name}`, "see: rig status");
     if (!tool.auth.length) {
       console.log(`${name} doesn't need any credentials`);

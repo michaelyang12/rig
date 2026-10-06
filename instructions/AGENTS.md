@@ -1,2 +1,0 @@
-- No emojis ever
-- Avoid comments in code unless flow is complex or leaving a todo.

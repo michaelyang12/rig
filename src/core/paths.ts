@@ -8,17 +8,20 @@ export const paths = {
   get root() {
     return process.env.RIG_ROOT ?? resolve(import.meta.dir, "../..");
   },
-  get tools() {
-    return join(this.root, "tools");
+  /** Packs shipped with or dropped into the install: `rig` (core) plus any dev packs. */
+  get packsDir() {
+    return join(this.root, "packs");
   },
-  get skills() {
-    return join(this.root, "skills");
+  get corePack() {
+    return join(this.packsDir, "rig");
   },
-  get instructions() {
-    return join(this.root, "instructions");
+  /** Template copied by `rig new instructions`; ships with rig. */
+  get instructionsExample() {
+    return join(this.root, "instructions", "AGENTS.example.md");
   },
-  get instructionsFile() {
-    return join(this.instructions, "AGENTS.md");
+  /** Where the instructions file lived before it moved to the config dir; only read for the migration hint. */
+  get legacyInstructionsFile() {
+    return join(this.root, "instructions", "AGENTS.md");
   },
   get shim() {
     return join(this.root, "bin", "rig");
@@ -29,6 +32,14 @@ export const paths = {
   get configFile() {
     return join(this.configDir, "config.json");
   },
+  /** Default home for user packs; survives reinstalls. */
+  get userPacksDir() {
+    return join(this.configDir, "packs");
+  },
+  /** The user's global instructions, linked into each harness. */
+  get instructionsFile() {
+    return join(this.configDir, "AGENTS.md");
+  },
   get envFile() {
     return join(this.configDir, ".env");
   },
@@ -37,6 +48,10 @@ export const paths = {
   },
   get stateFile() {
     return join(this.stateDir, "links.json");
+  },
+  /** Per-pack dependency install stamps. */
+  get packsStateFile() {
+    return join(this.stateDir, "packs.json");
   },
   get binDir() {
     return process.env.RIG_BIN_DIR ?? join(home(), ".local", "bin");
