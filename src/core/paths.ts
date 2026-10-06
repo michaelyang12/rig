@@ -8,11 +8,12 @@ export const paths = {
   get root() {
     return process.env.RIG_ROOT ?? resolve(import.meta.dir, "../..");
   },
-  get tools() {
-    return join(this.root, "tools");
+  /** Packs shipped with or dropped into the install: `rig` (core) plus any dev packs. */
+  get packsDir() {
+    return join(this.root, "packs");
   },
-  get skills() {
-    return join(this.root, "skills");
+  get corePack() {
+    return join(this.packsDir, "rig");
   },
   get instructions() {
     return join(this.root, "instructions");
@@ -28,6 +29,10 @@ export const paths = {
   },
   get configFile() {
     return join(this.configDir, "config.json");
+  },
+  /** Default home for user packs; survives reinstalls. */
+  get userPacksDir() {
+    return join(this.configDir, "packs");
   },
   get envFile() {
     return join(this.configDir, ".env");

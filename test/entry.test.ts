@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { parseFrontmatter } from "../src/core/registry";
 import { REPO, sandbox, type Sandbox } from "./helpers";
@@ -11,9 +11,9 @@ beforeEach(() => {
 afterEach(() => sb.cleanup());
 
 function addTool(name: string, description: string, command = name) {
-  mkdirSync(join(sb.root, "tools", name));
+  mkdirSync(join(sb.user, "tools", name));
   writeFileSync(
-    join(sb.root, "tools", name, "index.ts"),
+    join(sb.user, "tools", name, "index.ts"),
     `import { z } from "zod";
 import { defineCommand, defineTool } from "rig";
 export default defineTool({
@@ -33,7 +33,7 @@ export default defineTool({
 }
 
 describe("rig-entryexec is a static skill", () => {
-  const file = join(REPO, "skills", "rig-entryexec", "SKILL.md");
+  const file = join(REPO, "packs", "rig", "skills", "rig-entryexec", "SKILL.md");
   const text = readFileSync(file, "utf8");
   const fm = parseFrontmatter(text);
 
@@ -45,7 +45,11 @@ describe("rig-entryexec is a static skill", () => {
   });
 
   test("names no tool, so it never needs to change when tools do", () => {
-    const tools = readdirSync(join(REPO, "tools")).filter((d) => statSync(join(REPO, "tools", d)).isDirectory());
+    const packs = join(REPO, "packs");
+    const tools = readdirSync(packs).flatMap((pack) => {
+      const dir = join(packs, pack, "tools");
+      return existsSync(dir) ? readdirSync(dir).filter((d) => statSync(join(dir, d)).isDirectory()) : [];
+    });
     for (const tool of tools) expect(text).not.toMatch(new RegExp(`\\b${tool}\\b`));
   });
 
@@ -77,8 +81,8 @@ describe("rig ls", () => {
   });
 
   test("points to a tool's own skill", async () => {
-    mkdirSync(join(sb.root, "skills", "greet"));
-    writeFileSync(join(sb.root, "skills", "greet", "SKILL.md"), "---\nname: greet\ndescription: Greeting.\n---\n");
+    mkdirSync(join(sb.core, "skills", "greet"));
+    writeFileSync(join(sb.core, "skills", "greet", "SKILL.md"), "---\nname: greet\ndescription: Greeting.\n---\n");
     expect((await sb.run(["ls", "greet"])).stdout).toContain("has a skill: greet");
   });
 
@@ -113,7 +117,8 @@ describe("rig ls", () => {
   test("sync generates nothing", async () => {
     const { stdout } = await sb.run(["sync"]);
     expect(stdout).not.toContain("regenerated");
-    expect(readdirSync(join(sb.root, "skills")).sort()).toEqual(["alpha", "beta"]);
+    expect(readdirSync(join(sb.core, "skills"))).toEqual(["alpha"]);
+    expect(readdirSync(join(sb.user, "skills"))).toEqual(["beta"]);
   });
 
   test("an over-long tool description is reported as a problem", async () => {

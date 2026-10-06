@@ -7,7 +7,7 @@ import { REPO } from "./helpers";
 
 // rig-core is hand-written and deliberately curated (it doesn't map every file). Only the command
 // surface is checked: a built-in missing from rig-core or from RESERVED is a real defect, not a style gap.
-const skill = readFileSync(join(REPO, "skills", "rig-core", "SKILL.md"), "utf8");
+const skill = readFileSync(join(REPO, "packs", "rig", "skills", "rig-core", "SKILL.md"), "utf8");
 
 describe("rig-core skill stays in sync", () => {
   test("names every built-in command", () => {

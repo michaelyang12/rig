@@ -1,14 +1,13 @@
-// @module Discovers and validates tools/ and skills/: names, reserved commands, tool description length, and the <TOOL>_ auth convention.
-import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+// @module Loads and validates every pack's tools/ and skills/: names, reserved commands, tool description length, and the <TOOL>_ auth convention.
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { z } from "zod";
 import { apiKeyVar, envPrefix, type AuthVar, type CommandDef, type Context, type ToolDef } from "../sdk";
 import { loadConfig } from "./config";
-import { paths } from "./paths";
+import { discoverPacks, NAME_RE, subdirs, type Pack } from "./packs";
 import { installResolver } from "./resolve";
 
 export const RESERVED = ["sync", "remove", "add", "desync", "ls", "status", "auth", "config", "schema", "new", "help"];
-const NAME_RE = /^[a-z][a-z0-9-]*$/;
 /** A tool's description is its line in `rig ls`; the cap keeps that index cheap for agents to read. */
 export const TOOL_DESCRIPTION_MAX = 300;
 
@@ -38,6 +37,7 @@ export interface ResolvedCommand {
 export interface ResolvedTool {
   name: string;
   description: string;
+  pack: Pack;
   dir: string;
   kind: "ts" | "external";
   auth: AuthVar[];
@@ -52,12 +52,14 @@ export interface ResolvedTool {
 
 export interface Skill {
   name: string;
+  pack: Pack;
   dir: string;
   description?: string;
   disabled: boolean;
 }
 
 export interface Registry {
+  packs: Pack[];
   tools: ResolvedTool[];
   skills: Skill[];
   /** Enabled commands only, keyed by command name. */
@@ -90,13 +92,6 @@ const ToolJsonSchema = z.object({
   ),
 });
 
-function subdirs(dir: string): string[] {
-  if (!existsSync(dir)) return [];
-  return readdirSync(dir)
-    .filter((d) => !d.startsWith(".") && statSync(join(dir, d)).isDirectory())
-    .sort();
-}
-
 /** Enforce the `<TOOL>_API_KEY` convention and `<TOOL>_` namespace for every var. */
 export function normalizeAuth(tool: string, auth: AuthVar[] | undefined): AuthVar[] {
   if (!auth) return [];
@@ -115,7 +110,7 @@ export function normalizeAuth(tool: string, auth: AuthVar[] | undefined): AuthVa
   return [keyVar, ...auth.filter((v) => v.name !== key)];
 }
 
-async function loadTsTool(name: string, dir: string, file: string): Promise<ResolvedTool> {
+async function loadTsTool(pack: Pack, dir: string, file: string): Promise<ResolvedTool> {
   const mod = await import(file);
   const def: ToolDef | undefined = mod.default;
   if (!def || typeof def !== "object" || !def.commands) {
@@ -124,6 +119,7 @@ async function loadTsTool(name: string, dir: string, file: string): Promise<Reso
   const tool: ResolvedTool = {
     name: def.name,
     description: def.description,
+    pack,
     dir,
     kind: "ts",
     auth: normalizeAuth(def.name, def.auth),
@@ -145,7 +141,7 @@ async function loadTsTool(name: string, dir: string, file: string): Promise<Reso
   return tool;
 }
 
-function loadExternalTool(dir: string, file: string): ResolvedTool {
+function loadExternalTool(pack: Pack, dir: string, file: string): ResolvedTool {
   const parsed = ToolJsonSchema.safeParse(JSON.parse(readFileSync(file, "utf8")));
   if (!parsed.success) throw new Error(`invalid tool.json: ${z.prettifyError(parsed.error)}`);
   const def = parsed.data;
@@ -153,6 +149,7 @@ function loadExternalTool(dir: string, file: string): ResolvedTool {
   const tool: ResolvedTool = {
     name: def.name,
     description: def.description,
+    pack,
     dir,
     kind: "external",
     auth: normalizeAuth(def.name, def.auth),
@@ -190,19 +187,30 @@ let cached: Registry | undefined;
 export async function loadRegistry(): Promise<Registry> {
   if (cached) return cached;
   installResolver();
-  const { disabled } = loadConfig();
-  const problems: string[] = [];
+  const config = loadConfig();
+  const { packs, problems } = discoverPacks(config);
   const tools: ResolvedTool[] = [];
+  const skills: Skill[] = [];
   const commands = new Map<string, ResolvedCommand>();
+  for (const pack of packs) {
+    tools.push(...(await loadTools(pack, config.disabled, commands, problems)));
+    skills.push(...loadSkills(pack, config.disabled, skills, problems));
+  }
+  cached = { packs, tools, skills, commands, problems };
+  return cached;
+}
 
-  for (const name of subdirs(paths.tools)) {
-    const dir = join(paths.tools, name);
+async function loadTools(pack: Pack, disabled: string[], commands: Map<string, ResolvedCommand>, problems: string[]): Promise<ResolvedTool[]> {
+  const tools: ResolvedTool[] = [];
+  const toolsDir = join(pack.dir, "tools");
+  for (const name of subdirs(toolsDir)) {
+    const dir = join(toolsDir, name);
     const ts = join(dir, "index.ts");
     const json = join(dir, "tool.json");
     try {
       let tool: ResolvedTool;
-      if (existsSync(ts)) tool = await loadTsTool(name, dir, ts);
-      else if (existsSync(json)) tool = loadExternalTool(dir, json);
+      if (existsSync(ts)) tool = await loadTsTool(pack, dir, ts);
+      else if (existsSync(json)) tool = loadExternalTool(pack, dir, json);
       else throw new Error("needs index.ts or tool.json");
 
       if (tool.name !== name) throw new Error(`name "${tool.name}" must match its directory "${name}"`);
@@ -225,10 +233,14 @@ export async function loadRegistry(): Promise<Registry> {
       problems.push(`tool ${name}: ${(err as Error).message}`);
     }
   }
+  return tools;
+}
 
+function loadSkills(pack: Pack, disabled: string[], seen: Skill[], problems: string[]): Skill[] {
   const skills: Skill[] = [];
-  for (const name of subdirs(paths.skills)) {
-    const dir = join(paths.skills, name);
+  const skillsDir = join(pack.dir, "skills");
+  for (const name of subdirs(skillsDir)) {
+    const dir = join(skillsDir, name);
     const file = join(dir, "SKILL.md");
     if (!existsSync(file)) {
       problems.push(`skill ${name}: missing SKILL.md`);
@@ -237,11 +249,13 @@ export async function loadRegistry(): Promise<Registry> {
     const fm = parseFrontmatter(readFileSync(file, "utf8"));
     if (!fm.description) problems.push(`skill ${name}: SKILL.md frontmatter needs a description`);
     if (fm.name && fm.name !== name) problems.push(`skill ${name}: frontmatter name "${fm.name}" should match its directory`);
-    skills.push({ name, dir, description: fm.description, disabled: disabled.includes(name) });
+    if (seen.some((s) => s.name === name)) {
+      problems.push(`skill ${name}: already defined by another pack`);
+      continue;
+    }
+    skills.push({ name, pack, dir, description: fm.description, disabled: disabled.includes(name) });
   }
-
-  cached = { tools, skills, commands, problems };
-  return cached;
+  return skills;
 }
 
 export function resetRegistry(): void {

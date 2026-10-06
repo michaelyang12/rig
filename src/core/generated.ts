@@ -1,12 +1,11 @@
-// @module Writes tools' skillFiles() output into skills/<tool>/ during sync.
+// @module Writes tools' skillFiles() output into <pack>/skills/<tool>/ during sync.
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
-import { paths } from "./paths";
 import type { Registry } from "./registry";
 
 /**
- * Write each enabled tool's `skillFiles()` into `skills/<tool>/`. Only writes files whose content changed.
- * Returns the paths (relative to skills/) written or, on a dry run, that would be; problems go to `reg.problems`.
+ * Write each enabled tool's `skillFiles()` into `skills/<tool>/` of the tool's own pack. Only writes files
+ * whose content changed. Returns the paths (`<pack>/skills/<tool>/<file>`) written or, on a dry run, that would be; problems go to `reg.problems`.
  */
 export async function writeSkillFiles(reg: Registry, { dryRun = false } = {}): Promise<string[]> {
   const written: string[] = [];
@@ -19,7 +18,7 @@ export async function writeSkillFiles(reg: Registry, { dryRun = false } = {}): P
       reg.problems.push(`tool ${tool.name}: skillFiles failed: ${(err as Error).message}`);
       continue;
     }
-    const dir = join(paths.skills, tool.name);
+    const dir = join(tool.pack.dir, "skills", tool.name);
     if (!existsSync(join(dir, "SKILL.md"))) {
       reg.problems.push(`tool ${tool.name}: skillFiles needs skills/${tool.name}/SKILL.md to write into`);
       continue;
@@ -36,7 +35,7 @@ export async function writeSkillFiles(reg: Registry, { dryRun = false } = {}): P
         mkdirSync(dirname(file), { recursive: true });
         writeFileSync(file, content);
       }
-      written.push(relative(paths.skills, file));
+      written.push(join(tool.pack.name, relative(tool.pack.dir, file)));
     }
   }
   return written;

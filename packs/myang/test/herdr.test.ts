@@ -3,8 +3,6 @@ import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSy
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { RigError } from "rig";
-import { writeSkillFiles } from "../src/core/generated";
-import type { Registry, ResolvedTool } from "../src/core/registry";
 import { HANDOFF, Herdr, landSession, listPeers, prepareWorktree, spawnSession, type Agent } from "../tools/herdr";
 
 const IN_HERDR = { HERDR_ENV: "1", HERDR_PANE_ID: "w1:p1", HERDR_WORKSPACE_ID: "w1" };
@@ -211,48 +209,5 @@ describe("herdr-land", () => {
 
   test("an unknown target lists the linked worktrees", async () => {
     await expect(land({ target: "nope" })).rejects.toThrow("no linked worktree");
-  });
-});
-
-describe("skillFiles", () => {
-  let prevRoot: string | undefined;
-  beforeEach(() => {
-    prevRoot = process.env.RIG_ROOT;
-    process.env.RIG_ROOT = dir;
-    mkdirSync(join(dir, "skills", "gen"), { recursive: true });
-    writeFileSync(join(dir, "skills", "gen", "SKILL.md"), "---\nname: gen\ndescription: x\n---\n");
-  });
-  afterEach(() => {
-    if (prevRoot === undefined) delete process.env.RIG_ROOT;
-    else process.env.RIG_ROOT = prevRoot;
-  });
-
-  const registry = (name: string, files: Record<string, string | undefined>): Registry => ({
-    tools: [{ name, disabled: false, skillFiles: () => files } as unknown as ResolvedTool],
-    skills: [],
-    commands: new Map(),
-    problems: [],
-  });
-
-  test("writes changed files only, and skips undefined ones", async () => {
-    const reg = registry("gen", { "reference.md": "v1", "absent.md": undefined });
-    expect(await writeSkillFiles(reg)).toEqual(["gen/reference.md"]);
-    expect(readFileSync(join(dir, "skills", "gen", "reference.md"), "utf8")).toBe("v1");
-    expect(await writeSkillFiles(reg)).toEqual([]);
-    expect(existsSync(join(dir, "skills", "gen", "absent.md"))).toBe(false);
-  });
-
-  test("dry run writes nothing", async () => {
-    expect(await writeSkillFiles(registry("gen", { "a.md": "x" }), { dryRun: true })).toEqual(["gen/a.md"]);
-    expect(existsSync(join(dir, "skills", "gen", "a.md"))).toBe(false);
-  });
-
-  test("rejects paths outside the skill, SKILL.md itself, and tools without a skill", async () => {
-    const reg = registry("gen", { "../evil.md": "x", "SKILL.md": "x" });
-    expect(await writeSkillFiles(reg)).toEqual([]);
-    expect(reg.problems).toHaveLength(2);
-    const orphan = registry("nope", { "a.md": "x" });
-    await writeSkillFiles(orphan);
-    expect(orphan.problems[0]).toContain("needs skills/nope/SKILL.md");
   });
 });

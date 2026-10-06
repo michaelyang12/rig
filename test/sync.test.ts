@@ -22,8 +22,8 @@ describe("sync", () => {
     const { code, stdout } = await sb.run(["sync"]);
     expect(code).toBe(0);
     for (const target of [sb.claude, sb.agents]) {
-      expect(isLinkTo(join(target, "alpha"), join(sb.root, "skills", "alpha"))).toBe(true);
-      expect(isLinkTo(join(target, "beta"), join(sb.root, "skills", "beta"))).toBe(true);
+      expect(isLinkTo(join(target, "alpha"), join(sb.core, "skills", "alpha"))).toBe(true);
+      expect(isLinkTo(join(target, "beta"), join(sb.user, "skills", "beta"))).toBe(true);
     }
     expect(isLinkTo(sb.bin, join(sb.root, "bin", "rig"))).toBe(true);
     expect(stdout).toContain("3 tool(s)");
@@ -54,12 +54,12 @@ describe("sync", () => {
     expect(code).toBe(1);
     expect(stdout).toContain("! alpha");
     expect(lstatSync(join(sb.claude, "alpha")).isDirectory()).toBe(true);
-    expect(isLinkTo(join(sb.agents, "alpha"), join(sb.root, "skills", "alpha"))).toBe(true);
+    expect(isLinkTo(join(sb.agents, "alpha"), join(sb.core, "skills", "alpha"))).toBe(true);
   });
 
   test("prunes links for deleted skills", async () => {
     await sb.run(["sync"]);
-    rmSync(join(sb.root, "skills", "beta"), { recursive: true });
+    rmSync(join(sb.user, "skills", "beta"), { recursive: true });
     const { stdout } = await sb.run(["sync"]);
     expect(stdout).toContain("- beta");
     expect(existsSync(join(sb.claude, "beta"))).toBe(false);
@@ -72,7 +72,7 @@ describe("sync", () => {
     cpSync(sb.root, moved, { recursive: true, verbatimSymlinks: true });
     const { stdout } = await sb.run(["sync"], { env: { RIG_ROOT: moved } });
     expect(stdout).toContain("~ alpha");
-    expect(isLinkTo(join(sb.claude, "alpha"), join(moved, "skills", "alpha"))).toBe(true);
+    expect(isLinkTo(join(sb.claude, "alpha"), join(moved, "packs", "rig", "skills", "alpha"))).toBe(true);
   });
 
   test("dropping a harness prunes its links and keeps the rest", async () => {
@@ -83,7 +83,7 @@ describe("sync", () => {
     expect(code).toBe(0);
     expect(stdout).toContain("- alpha → ~/.claude/skills/alpha");
     expect(existsSync(join(sb.claude, "alpha"))).toBe(false);
-    expect(isLinkTo(join(sb.agents, "alpha"), join(sb.root, "skills", "alpha"))).toBe(true);
+    expect(isLinkTo(join(sb.agents, "alpha"), join(sb.core, "skills", "alpha"))).toBe(true);
   });
 
   test("links the harnesses named in config, in any case, plus the always-on ones", async () => {
@@ -92,7 +92,7 @@ describe("sync", () => {
     writeFileSync(join(sb.root, "instructions", "AGENTS.md"), "# rules\n");
     const { code } = await sb.run(["sync"]);
     expect(code).toBe(0);
-    expect(isLinkTo(join(sb.agents, "alpha"), join(sb.root, "skills", "alpha"))).toBe(true);
+    expect(isLinkTo(join(sb.agents, "alpha"), join(sb.core, "skills", "alpha"))).toBe(true);
     expect(lstatSync(sb.harness("codex", "instructions")).isSymbolicLink()).toBe(true);
     expect(existsSync(sb.claude)).toBe(false);
     expect(existsSync(sb.harness("claude", "instructions"))).toBe(false);
@@ -101,7 +101,7 @@ describe("sync", () => {
   test("an empty harness list still links the always-on ones", async () => {
     writeConfig({ harnesses: [] });
     expect((await sb.run(["sync"])).code).toBe(0);
-    expect(isLinkTo(join(sb.agents, "alpha"), join(sb.root, "skills", "alpha"))).toBe(true);
+    expect(isLinkTo(join(sb.agents, "alpha"), join(sb.core, "skills", "alpha"))).toBe(true);
     expect(existsSync(sb.claude)).toBe(false);
   });
 
@@ -120,9 +120,9 @@ describe("sync", () => {
   });
 
   test("reports broken tools without breaking the rest", async () => {
-    mkdirSync(join(sb.root, "tools", "bad"));
+    mkdirSync(join(sb.user, "tools", "bad"));
     writeFileSync(
-      join(sb.root, "tools", "bad", "index.ts"),
+      join(sb.user, "tools", "bad", "index.ts"),
       `export default { name: "bad", description: "x", auth: [{ name: "WRONG_URL", prompt: "x" }], commands: {} };`,
     );
     const { code, stdout } = await sb.run(["sync"]);
@@ -146,7 +146,7 @@ describe("remove / add", () => {
 
     r = await sb.run(["add", "alpha"]);
     expect(r.code).toBe(0);
-    expect(isLinkTo(join(sb.claude, "alpha"), join(sb.root, "skills", "alpha"))).toBe(true);
+    expect(isLinkTo(join(sb.claude, "alpha"), join(sb.core, "skills", "alpha"))).toBe(true);
   });
 
   test("remove saves only the disabled list, not default harness paths", async () => {

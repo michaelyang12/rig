@@ -9,6 +9,10 @@ const FIXTURES = join(REPO, "test", "fixtures");
 export interface Sandbox {
   dir: string;
   root: string;
+  /** The core pack (`<root>/packs/rig`), copied from fixtures/packs/core-fixture. */
+  core: string;
+  /** A user pack named `demo` in the sandbox's config dir, copied from fixtures/packs/user-fixture. */
+  user: string;
   home: string;
   env: Record<string, string>;
   claude: string;
@@ -21,16 +25,18 @@ export interface Sandbox {
   cleanup(): void;
 }
 
-/** A throwaway HOME plus a copy of the fixture repo, so tests never touch real harness dirs. */
+/** A throwaway HOME plus a fixture install (core pack) and user pack, so tests never touch real harness dirs. */
 export function sandbox(): Sandbox {
   const dir = realpathSync(mkdtempSync(join(tmpdir(), "rig-test-")));
   const root = join(dir, "root");
-  cpSync(FIXTURES, root, { recursive: true });
+  const core = join(root, "packs", "rig");
+  cpSync(join(FIXTURES, "packs", "core-fixture"), core, { recursive: true });
   mkdirSync(join(root, "bin"));
   cpSync(join(REPO, "bin", "rig"), join(root, "bin", "rig"));
 
   const home = join(dir, "home");
-  mkdirSync(home);
+  const user = join(home, ".config", "rig", "packs", "demo");
+  cpSync(join(FIXTURES, "packs", "user-fixture"), user, { recursive: true });
   const env: Record<string, string> = {};
   for (const [k, v] of Object.entries(process.env)) {
     if (v !== undefined && !/^(ACME|GREET|PYECHO)_|^RIG_|^XDG_/.test(k)) env[k] = v;
@@ -53,6 +59,8 @@ export function sandbox(): Sandbox {
   return {
     dir,
     root,
+    core,
+    user,
     home,
     env,
     claude: harness("claude", "skills"),

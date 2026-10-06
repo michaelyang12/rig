@@ -22,14 +22,28 @@ export function table(rows: string[][], indent = 2): string {
 }
 
 /** Pull `--flag` booleans out of argv, returning the remaining positionals. */
-export function takeFlags(argv: string[], known: string[]): { flags: Set<string>; rest: string[] } {
+export function takeFlags(
+  argv: string[],
+  known: string[],
+  valued: string[] = [],
+): { flags: Set<string>; values: Map<string, string>; rest: string[] } {
   const flags = new Set<string>();
+  const values = new Map<string, string>();
   const rest: string[] = [];
-  for (const a of argv) {
-    if (a.startsWith("--")) {
-      if (!known.includes(a)) throw new RigError("USAGE", `unknown flag ${a}`);
-      flags.add(a);
-    } else rest.push(a);
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i]!;
+    if (!a.startsWith("--")) {
+      rest.push(a);
+      continue;
+    }
+    const eq = a.indexOf("=");
+    const name = eq === -1 ? a : a.slice(0, eq);
+    if (valued.includes(name)) {
+      const value = eq === -1 ? argv[++i] : a.slice(eq + 1);
+      if (!value) throw new RigError("USAGE", `${name} needs a value`);
+      values.set(name, value);
+    } else if (known.includes(a)) flags.add(a);
+    else throw new RigError("USAGE", `unknown flag ${a}`);
   }
-  return { flags, rest };
+  return { flags, values, rest };
 }
