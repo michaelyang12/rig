@@ -1,4 +1,4 @@
-// @module ~/.config/rig/config.json: which harnesses to link into, extra pack paths, and which tools/skills are disabled.
+// @module ~/.config/rig/config.json: which harnesses to link into, extra pack paths, command aliases, and which tools/skills are disabled.
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { RigError } from "../sdk";
 import { ALWAYS_HARNESS_IDS, HARNESS_IDS, OPTIONAL_HARNESS_IDS, harnessPaths, parseHarnessId, type HarnessId } from "./harnesses";
@@ -7,13 +7,15 @@ import { expandHome, paths } from "./paths";
 export interface Config {
   /** Optional harnesses to link into (names from HARNESSES, any case). Defaults to all of them. */
   harnesses: HarnessId[];
-  /** Tool/skill names excluded from sync and dispatch (set by `rig remove`). */
+  /** `<pack>:<name>` tools/skills excluded from sync and dispatch (set by `rig remove`). Legacy bare names match every pack. */
   disabled: string[];
+  /** Bare command name → `<pack>:<command>`, to settle a collision between packs. */
+  aliases: Record<string, string>;
   /** Extra pack directories, beyond `~/.config/rig/packs/*`. `~` expands; relative paths resolve against the config dir. */
   packs: string[];
 }
 
-const defaults = (): Config => ({ harnesses: [...OPTIONAL_HARNESS_IDS], disabled: [], packs: [] });
+const defaults = (): Config => ({ harnesses: [...OPTIONAL_HARNESS_IDS], disabled: [], aliases: {}, packs: [] });
 
 /**
  * Resolves harness names (any case) to optional harness ids, in declaration order. Always-on
@@ -39,6 +41,7 @@ export function loadConfig(): Config {
   return {
     harnesses: stored.harnesses === undefined ? base.harnesses : parseHarnesses(stored.harnesses),
     disabled: stored.disabled ?? base.disabled,
+    aliases: stored.aliases ?? base.aliases,
     packs: stored.packs ?? base.packs,
   };
 }

@@ -151,14 +151,14 @@ describe("remove / add", () => {
 
   test("remove saves only the disabled list, not default harness paths", async () => {
     await sb.run(["remove", "alpha"]);
-    expect(JSON.parse(readFileSync(configFile(), "utf8"))).toEqual({ disabled: ["alpha"] });
+    expect(JSON.parse(readFileSync(configFile(), "utf8"))).toEqual({ disabled: ["rig:alpha"] });
   });
 
   test("removing a tool disables its commands", async () => {
     await sb.run(["remove", "greet"]);
     const r = await sb.run(["greet", "bob"]);
     expect(r.code).toBe(1);
-    expect(r.stderr).toContain("rig add greet");
+    expect(r.stderr).toContain("rig add rig:greet");
     expect((await sb.run(["ls"])).stdout).not.toContain("greet");
   });
 

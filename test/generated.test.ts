@@ -26,6 +26,8 @@ const registry = (name: string, files: Record<string, string | undefined>, pack 
   tools: [{ name, pack, disabled: false, skillFiles: () => files } as unknown as ResolvedTool],
   skills: [],
   commands: new Map(),
+  qualified: new Map(),
+  ambiguous: new Map(),
   problems: [],
 });
 

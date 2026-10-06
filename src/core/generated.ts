@@ -1,7 +1,7 @@
 // @module Writes tools' skillFiles() output into <pack>/skills/<tool>/ during sync.
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
-import type { Registry } from "./registry";
+import { isActive, type Registry } from "./registry";
 
 /**
  * Write each enabled tool's `skillFiles()` into `skills/<tool>/` of the tool's own pack. Only writes files
@@ -10,7 +10,7 @@ import type { Registry } from "./registry";
 export async function writeSkillFiles(reg: Registry, { dryRun = false } = {}): Promise<string[]> {
   const written: string[] = [];
   for (const tool of reg.tools) {
-    if (tool.disabled || !tool.skillFiles) continue;
+    if (!isActive(tool) || !tool.skillFiles) continue;
     let files: Record<string, string | undefined>;
     try {
       files = await tool.skillFiles();

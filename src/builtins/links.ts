@@ -1,11 +1,11 @@
-import { activeHarnesses, loadConfig, saveConfig } from "../core/config";
+import { activeHarnesses, loadConfig, saveConfig, type Config } from "../core/config";
 import { writeSkillFiles } from "../core/generated";
 import { lookupVar, readEnvFile } from "../core/env";
 import { harnessPath } from "../core/harnesses";
 import { instructionLinks } from "../core/instructions";
 import { desiredLinks, removeAllLinks, syncLinks, type LinkChange } from "../core/links";
 import { expandHome, paths, tildify } from "../core/paths";
-import { loadRegistry, resetRegistry, type Registry, type ResolvedTool } from "../core/registry";
+import { isActive, loadRegistry, resetRegistry, type Registry, type ResolvedTool } from "../core/registry";
 import { c, table, takeFlags } from "../core/ui";
 import { RigError } from "../sdk";
 import { lstatSync, readlinkSync } from "node:fs";
@@ -48,9 +48,9 @@ export async function sync(argv: string[]): Promise<number> {
   const generated = await writeSkillFiles(reg, { dryRun });
   const changes = syncLinks(reg, { dryRun });
 
-  const tools = reg.tools.filter((t) => !t.disabled);
-  const skills = reg.skills.filter((s) => !s.disabled);
-  console.log(c.bold(`rig: ${tools.length} tool(s), ${reg.commands.size} command(s), ${skills.length} skill(s)`));
+  const tools = reg.tools.filter(isActive);
+  const skills = reg.skills.filter(isActive);
+  console.log(c.bold(`rig: ${tools.length} tool(s), ${reg.qualified.size} command(s), ${skills.length} skill(s)`));
   for (const rel of generated) console.log(`  ${dryRun ? c.dim("(dry run) ") : ""}${c.yellow("~")} regenerated ${rel}`);
   printChanges(changes, dryRun);
   printProblems(reg);
@@ -69,51 +69,74 @@ export async function sync(argv: string[]): Promise<number> {
   return changes.some((ch) => ch.action === "conflict") || reg.problems.length ? 1 : 0;
 }
 
-function knownName(reg: Registry, name: string): boolean {
-  return reg.tools.some((t) => t.name === name) || reg.skills.some((s) => s.name === name);
+/** Qualified `<pack>:<name>` forms of every tool/skill a name refers to (bare names match every pack). */
+function qualifiedMatches(reg: Registry, name: string): string[] {
+  const items = [...reg.tools, ...reg.skills];
+  const hits = name.includes(":")
+    ? items.filter((item) => `${item.pack.name}:${item.name}` === name)
+    : items.filter((item) => item.name === name);
+  return [...new Set(hits.map((item) => `${item.pack.name}:${item.name}`))];
 }
+
+/** Rewrites legacy bare `disabled` entries as the qualified names they currently match. */
+function qualifyDisabled(config: Config, reg: Registry): Config {
+  const disabled = config.disabled.flatMap((entry) => {
+    if (entry.includes(":")) return [entry];
+    const matches = qualifiedMatches(reg, entry);
+    return matches.length ? matches : [entry];
+  });
+  return { ...config, disabled: [...new Set(disabled)] };
+}
+
+function pickOne(cmd: "remove" | "add", name: string, matches: string[]): string {
+  if (!matches.length) throw new RigError("NOT_FOUND", `no tool or skill named ${name}`, "see: rig status");
+  if (matches.length > 1) {
+    throw new RigError("USAGE", `${name} is in more than one pack`, `choose one: ${matches.map((m) => `rig ${cmd} ${m}`).join(", ")}`);
+  }
+  return matches[0]!;
+}
+
+const bareName = (qualified: string) => qualified.slice(qualified.indexOf(":") + 1);
 
 export async function remove(argv: string[]): Promise<number> {
   const { flags, rest } = takeFlags(argv, ["--dry-run"]);
   const [name] = rest;
-  if (!name) throw new RigError("USAGE", "usage: rig remove <tool-or-skill>");
+  if (!name) throw new RigError("USAGE", "usage: rig remove <tool-or-skill | pack:name>");
   const reg = await loadRegistry();
-  if (!knownName(reg, name)) throw new RigError("NOT_FOUND", `no tool or skill named ${name}`, "see: rig status");
+  const target = pickOne("remove", name, qualifiedMatches(reg, name));
 
-  const config = loadConfig();
-  if (!config.disabled.includes(name)) config.disabled.push(name);
+  const config = qualifyDisabled(loadConfig(), reg);
+  if (!config.disabled.includes(target)) config.disabled.push(target);
   const dryRun = flags.has("--dry-run");
   if (!dryRun) saveConfig(config);
 
-  // Re-sync with the name disabled so its links are pruned.
-  for (const t of reg.tools) if (t.name === name) t.disabled = true;
-  for (const s of reg.skills) if (s.name === name) s.disabled = true;
-  for (const [cmd, def] of reg.commands) if (def.tool.name === name) reg.commands.delete(cmd);
-  const changes = syncLinks(reg, { dryRun }).filter((ch) => ch.link.name === name);
+  // Re-sync against the new config: target's links are pruned, and a skill it blocked may now link.
+  const changes = syncLinks(await loadRegistry(config), { dryRun }).filter((ch) => ch.link.name === bareName(target));
 
-  console.log(`${dryRun ? c.dim("(dry run) ") : ""}disabled ${c.bold(name)}`);
+  console.log(`${dryRun ? c.dim("(dry run) ") : ""}disabled ${c.bold(target)}`);
   printChanges(changes, dryRun);
-  console.log(c.dim(`  re-enable with: rig add ${name}`));
+  console.log(c.dim(`  re-enable with: rig add ${target}`));
   return 0;
 }
 
 export async function add(argv: string[]): Promise<number> {
   const { rest } = takeFlags(argv, []);
   const [name] = rest;
-  if (!name) throw new RigError("USAGE", "usage: rig add <tool-or-skill>");
-  const config = loadConfig();
-  if (!config.disabled.includes(name)) {
-    const reg = await loadRegistry();
-    if (!knownName(reg, name)) throw new RigError("NOT_FOUND", `no tool or skill named ${name}`);
+  if (!name) throw new RigError("USAGE", "usage: rig add <tool-or-skill | pack:name>");
+  const reg = await loadRegistry();
+  const config = qualifyDisabled(loadConfig(), reg);
+  const matches = qualifiedMatches(reg, name);
+  const disabled = matches.filter((m) => config.disabled.includes(m));
+  if (matches.length && !disabled.length) {
     console.log(`${name} is already enabled`);
     return 0;
   }
-  config.disabled = config.disabled.filter((n) => n !== name);
+  const target = pickOne("add", name, disabled.length ? disabled : matches);
+  config.disabled = config.disabled.filter((n) => n !== target);
   saveConfig(config);
   resetRegistry();
-  const reg = await loadRegistry();
-  const changes = syncLinks(reg).filter((ch) => ch.link.name === name);
-  console.log(`enabled ${c.bold(name)}`);
+  const changes = syncLinks(await loadRegistry()).filter((ch) => ch.link.name === bareName(target));
+  console.log(`enabled ${c.bold(target)}`);
   printChanges(changes, false);
   return 0;
 }
@@ -137,6 +160,12 @@ function linkState(path: string, source: string): string {
   }
 }
 
+function label(item: { name: string; disabled: boolean; conflict?: string }): string {
+  if (item.disabled) return `${item.name} ${c.dim("(disabled)")}`;
+  if (item.conflict) return `${item.name} ${c.red("(conflict)")}`;
+  return item.name;
+}
+
 export async function status(): Promise<number> {
   const reg = await loadRegistry();
   const harnesses = activeHarnesses(loadConfig());
@@ -155,8 +184,8 @@ export async function status(): Promise<number> {
   if (reg.skills.length) {
     const header = ["", ...targets.map((t) => c.dim(t.id))];
     const rows = reg.skills.map((s) => [
-      s.disabled ? `${s.name} ${c.dim("(disabled)")}` : s.name,
-      ...targets.map((t) => (s.disabled ? c.dim("-") : linkState(`${t.path}/${s.name}`, s.dir))),
+      label(s),
+      ...targets.map((t) => (isActive(s) ? linkState(`${t.path}/${s.name}`, s.dir) : c.dim("-"))),
     ]);
     console.log(table([header, ...rows]));
   } else console.log(c.dim("  none"));
@@ -179,9 +208,9 @@ export async function status(): Promise<number> {
       const missing = missingAuth(t, file);
       const auth = !t.auth.length ? c.dim("no auth") : missing.length ? c.red(`missing ${missing.join(", ")}`) : c.green("auth ok");
       return [
-        t.disabled ? `${t.name} ${c.dim("(disabled)")}` : t.name,
+        label(t),
         c.dim(`${t.commands.length} cmd`),
-        t.disabled ? c.dim("-") : auth,
+        isActive(t) ? auth : c.dim("-"),
       ];
     });
     console.log(table(rows));
