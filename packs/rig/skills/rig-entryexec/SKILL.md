@@ -9,7 +9,7 @@ The user has a personal CLI, `rig`, on PATH. Its tools are theirs. When one fits
 
 ## Finding a tool
 
-1. `rig ls`: one line per tool, saying what it does and when to use it. Choose by meaning, not by matching words exactly.
+1. `rig ls`: one line per tool, grouped by pack, saying what it does and when to use it. Choose by meaning, not by matching words exactly.
 2. `rig ls <tool>`: that tool's commands. If the output says `has a skill: <name>`, load that skill.
 3. `rig <command> --help`: flags. Check it before the first call.
 
@@ -18,6 +18,7 @@ The user has a personal CLI, `rig`, on PATH. Its tools are theirs. When one fits
 - Flags are kebab-case. Booleans are bare `--flag` / `--no-flag`. Array flags repeat or take trailing positionals. Complex input: `--input '<json>'`.
 - `--json` returns `{"ok":true,"data":…}` or `{"ok":false,"error":{"code","message","hint"}}`.
 - Exit codes: `0` ok, `1` tool/upstream error, `2` bad arguments, `3` credentials missing or rejected.
+- `rig <pack>:<command>` always works. If two packs define a command, the bare name fails (exit `1`) with a hint listing the qualified forms: pick the pack that fits the task, or ask the user. Never guess between them.
 - On exit `3`, ask the user to run `rig auth <tool>` in their terminal (it's interactive). Never ask for secrets in chat, and never read `~/.config/rig/.env`.
 
 To add, change, or refactor rig tools and skills, use the `rig-core` skill.

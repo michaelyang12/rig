@@ -4,7 +4,7 @@ import { RigError } from "../sdk";
 
 const USAGE = `usage: rig ls [tool] [--json]
 
-  rig ls          One line per tool: what it does and when to use it
+  rig ls          One line per tool, grouped by pack: what it does and when to use it
   rig ls <tool>   That tool's commands (a command name also works)
   --json          Commands with their JSON Schemas, filtered to <tool> if given`;
 
@@ -69,7 +69,12 @@ export async function ls(argv: string[]): Promise<number> {
     console.log("no tools yet; scaffold one with: rig new tool <name>");
     return 0;
   }
-  console.log(table(tools.map((t) => [c.bold(t.name), t.description])));
+  for (const pack of reg.packs) {
+    const own = tools.filter((t) => t.pack === pack);
+    if (!own.length) continue;
+    console.log(c.dim(`${pack.name}:`));
+    console.log(table(own.map((t) => [c.bold(t.name), t.description])));
+  }
   console.log(c.dim("run `rig ls <tool>` for its commands"));
   return 0;
 }

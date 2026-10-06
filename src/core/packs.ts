@@ -15,6 +15,8 @@ export interface Pack {
   description?: string;
   dir: string;
   origin: PackOrigin;
+  /** Off via `rig pack disable`: none of its tools or skills load, and its deps aren't managed. */
+  disabled: boolean;
 }
 
 const PackJsonSchema = z.object({
@@ -52,7 +54,7 @@ function readPack(dir: string, origin: PackOrigin): Pack {
   if ((name === CORE_PACK) !== (origin === "core")) {
     throw new Error(origin === "core" ? `core pack must be named "${CORE_PACK}", not "${name}"` : `"${CORE_PACK}" is reserved for the core pack`);
   }
-  return { name, description, dir, origin };
+  return { name, description, dir, origin, disabled: false };
 }
 
 /** Config `packs` entries: `~` expands, relative paths resolve against the config dir. */
@@ -65,7 +67,7 @@ export function configPackPath(entry: string): string {
  * `packs` paths. Order is for display only; it never decides a name conflict. A second pack with a
  * name already taken is skipped and reported.
  */
-export function discoverPacks(config: Pick<Config, "packs">): { packs: Pack[]; problems: string[] } {
+export function discoverPacks(config: Pick<Config, "packs" | "disabledPacks">): { packs: Pack[]; problems: string[] } {
   const candidates: { dir: string; origin: PackOrigin }[] = [{ dir: paths.corePack, origin: "core" }];
   for (const d of subdirs(paths.packsDir)) if (d !== CORE_PACK) candidates.push({ dir: join(paths.packsDir, d), origin: "repo" });
   for (const d of subdirs(paths.userPacksDir)) candidates.push({ dir: join(paths.userPacksDir, d), origin: "config dir" });
@@ -85,6 +87,7 @@ export function discoverPacks(config: Pick<Config, "packs">): { packs: Pack[]; p
         problems.push(`pack at ${tildify(dir)}: name "${pack.name}" is already used by ${tildify(taken.dir)}; skipped`);
         continue;
       }
+      pack.disabled = pack.name !== CORE_PACK && config.disabledPacks.includes(pack.name);
       packs.push(pack);
     } catch (err) {
       problems.push(`pack at ${tildify(dir)}: ${(err as Error).message}`);

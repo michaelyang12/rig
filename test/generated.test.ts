@@ -11,8 +11,8 @@ let packs: Record<"one" | "two", Pack>;
 beforeEach(() => {
   dir = realpathSync(mkdtempSync(join(tmpdir(), "rig-gen-")));
   packs = {
-    one: { name: "one", dir: join(dir, "one"), origin: "config dir" },
-    two: { name: "two", dir: join(dir, "two"), origin: "config dir" },
+    one: { name: "one", dir: join(dir, "one"), origin: "config dir", disabled: false },
+    two: { name: "two", dir: join(dir, "two"), origin: "config dir", disabled: false },
   };
   for (const pack of Object.values(packs)) {
     mkdirSync(join(pack.dir, "skills", "gen"), { recursive: true });

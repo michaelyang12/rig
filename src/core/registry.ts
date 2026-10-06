@@ -219,6 +219,7 @@ export async function loadRegistry(override?: Config): Promise<Registry> {
   const tools: ResolvedTool[] = [];
   const skills: Skill[] = [];
   for (const pack of packs) {
+    if (pack.disabled) continue;
     if (depsStale(pack)) problems.push(`pack ${pack.name}: dependencies changed; run rig sync`);
     const mismatch = peerMismatch(pack);
     if (mismatch) problems.push(`pack ${pack.name}: ${mismatch}; its tools don't load`);

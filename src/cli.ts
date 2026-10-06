@@ -9,17 +9,25 @@ import { RigError } from "./sdk";
 const HELP = `${c.bold("rig")}: your agent tools and skills, in every harness
 
 ${c.bold("Tools")}
-  rig ls [tool] [--json]     List tools, or one tool's commands
-  rig <command> --help       Show a command's flags
+  rig ls [tool] [--json]     List tools by pack, or one tool's commands
+  rig <command> --help       Show a command's flags (<pack>:<command> always works)
   rig schema <command>       Print a command's JSON Schema
-  rig new tool <name>        Scaffold a tool (--auth, --uv, --no-skill)
-  rig new skill <name>       Scaffold a skill
+  rig new tool <name>        Scaffold a tool (--auth, --uv, --no-skill, --pack <name>)
+  rig new skill <name>       Scaffold a skill (--pack <name>)
+
+${c.bold("Packs")}
+  rig pack ls                List packs: source, counts, dependency state
+  rig new pack <name>        Scaffold a pack (--path <dir>)
+  rig pack add|remove <path> Add or remove a pack directory in config
+  rig pack disable|enable    Turn a whole pack off or on
+  rig pack install [pack]    Install a pack's npm dependencies
 
 ${c.bold("Sync")}
   rig sync [--dry-run]       Link skills into harnesses and rig onto PATH
   rig status                 Show links, tools and auth state
-  rig remove <name>          Unlink and disable a skill/tool
+  rig remove <name>          Unlink and disable a skill/tool (<pack>:<name> when ambiguous)
   rig add <name>             Re-enable a removed skill/tool
+  rig new instructions       Start ~/.config/rig/AGENTS.md from the example
   rig desync [--dry-run]     Remove every link rig created (keeps rig itself)
   rig config                 Choose harnesses interactively (or: rig config harnesses <name>...)
 

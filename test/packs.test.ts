@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { cpSync, existsSync, lstatSync, mkdirSync, readlinkSync, symlinkSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, lstatSync, mkdirSync, readFileSync, readlinkSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { sandbox, type Sandbox } from "./helpers";
 
@@ -95,5 +95,99 @@ describe("pack discovery", () => {
   test("dev packs under <root>/packs load too", async () => {
     makePack(join(sb.root, "packs", "dev"), "dev");
     expect(JSON.parse((await sb.run(["dev-tool", "1", "--json"])).stdout).data.doubled).toBe(2);
+  });
+});
+
+describe("rig pack", () => {
+  test("ls shows each pack's origin, source, counts and dependency state", async () => {
+    const { code, stdout } = await sb.run(["pack", "ls"]);
+    expect(code).toBe(0);
+    expect(stdout).toMatch(/rig\s+core\s+\S+\/root\/packs\/rig\s+1 tool\(s\), 1 skill\(s\)\s+no deps/);
+    expect(stdout).toMatch(/demo\s+config dir\s+~\/\.config\/rig\/packs\/demo\s+2 tool\(s\), 1 skill\(s\)/);
+    const { data } = JSON.parse((await sb.run(["pack", "ls", "--json"])).stdout);
+    expect(data.map((p: { name: string; origin: string }) => [p.name, p.origin])).toEqual([["rig", "core"], ["demo", "config dir"]]);
+  });
+
+  test("add and remove edit config packs and never delete files", async () => {
+    const dir = join(sb.home, "src", "work-pack");
+    makePack(dir, "work");
+    const added = await sb.run(["pack", "add", "~/src/work-pack"]);
+    expect(added.code).toBe(0);
+    expect(JSON.parse(readFileSync(join(sb.home, ".config", "rig", "config.json"), "utf8")).packs).toEqual(["~/src/work-pack"]);
+    expect(lstatSync(join(sb.claude, "work-skill")).isSymbolicLink()).toBe(true);
+    expect((await sb.run(["pack", "add", dir])).stdout).toContain("already a pack source");
+
+    expect((await sb.run(["pack", "remove", "work"])).code).toBe(0);
+    expect(existsSync(join(sb.claude, "work-skill"))).toBe(false);
+    expect(existsSync(join(dir, "pack.json"))).toBe(true);
+  });
+
+  test("remove refuses a pack that isn't from config, and points at disable", async () => {
+    const r = await sb.run(["pack", "remove", "demo"]);
+    expect(r.code).toBe(2);
+    expect(r.stderr).toContain("rig pack disable demo");
+  });
+
+  test("disable turns off a whole pack, enable brings it back", async () => {
+    await sb.run(["sync"]);
+    expect((await sb.run(["pack", "disable", "demo"])).code).toBe(0);
+    expect(existsSync(join(sb.claude, "beta"))).toBe(false);
+    expect((await sb.run(["acme-whoami"])).code).toBe(1);
+    expect((await sb.run(["pack", "ls"])).stdout).toContain("demo (disabled)");
+    expect((await sb.run(["pack", "disable", "rig"])).code).toBe(2);
+
+    expect((await sb.run(["pack", "enable", "demo"])).code).toBe(0);
+    expect(lstatSync(join(sb.claude, "beta")).isSymbolicLink()).toBe(true);
+  });
+});
+
+describe("rig new", () => {
+  test("new pack scaffolds into the config dir", async () => {
+    const r = await sb.run(["new", "pack", "work"]);
+    expect(r.code).toBe(0);
+    const dir = join(dirname(sb.user), "work");
+    expect(JSON.parse(readFileSync(join(dir, "pack.json"), "utf8")).name).toBe("work");
+    expect(readFileSync(join(dir, ".gitignore"), "utf8")).toContain("node_modules");
+    expect(existsSync(join(dir, "skills"))).toBe(true);
+    expect((await sb.run(["new", "pack", "work"])).code).toBe(2);
+    expect((await sb.run(["new", "pack", "rig"])).code).toBe(2);
+  });
+
+  test("new pack --path elsewhere adds it to config", async () => {
+    await sb.run(["new", "pack", "work", "--path", "~/src/work"]);
+    expect(JSON.parse(readFileSync(join(sb.home, ".config", "rig", "config.json"), "utf8")).packs).toEqual(["~/src/work"]);
+    expect((await sb.run(["new", "tool", "hey", "--pack", "work", "--no-skill"])).code).toBe(0);
+    expect((await sb.run(["hey", "you"])).stdout).toBe("hello you\n");
+    expect(existsSync(join(sb.home, "src", "work", "tools", "hey", "index.ts"))).toBe(true);
+  });
+
+  test("with two user packs, new tool needs --pack or defaultPack", async () => {
+    await sb.run(["new", "pack", "work"]);
+    const r = await sb.run(["new", "tool", "hey"]);
+    expect(r.code).toBe(2);
+    expect(r.stderr).toContain("choose one with --pack <name>");
+    expect(r.stderr).toContain("packs: rig, demo, work");
+
+    writeConfig({ defaultPack: "work" });
+    expect((await sb.run(["new", "skill", "notes"])).code).toBe(0);
+    expect(existsSync(join(dirname(sb.user), "work", "skills", "notes", "SKILL.md"))).toBe(true);
+  });
+
+  test("--pack rig targets the core pack", async () => {
+    expect((await sb.run(["new", "skill", "core-notes", "--pack", "rig"])).code).toBe(0);
+    expect(existsSync(join(sb.core, "skills", "core-notes", "SKILL.md"))).toBe(true);
+  });
+
+  test("a name another pack already uses is refused", async () => {
+    const r = await sb.run(["new", "skill", "alpha"]);
+    expect(r.code).toBe(2);
+    expect(r.stderr).toContain("(pack rig)");
+  });
+});
+
+describe("rig ls", () => {
+  test("groups tools under their pack", async () => {
+    const { stdout } = await sb.run(["ls"]);
+    expect(stdout).toMatch(/rig:\n\s+greet\s+Greets people\ndemo:\n\s+acme\s+Talks to the Acme API\n\s+pyecho/);
   });
 });

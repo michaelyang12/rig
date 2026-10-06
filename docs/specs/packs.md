@@ -1,6 +1,6 @@
 # Spec: packs
 
-Status: draft · 2026-10-05
+Status: phases 1-6 implemented · 2026-10-05
 
 ## Why
 
@@ -214,4 +214,18 @@ Each phase ends with `bun run typecheck && bun test && rig sync && rig ls` passi
 
 - npm package name: `rig` is taken (the spike's auto-install fetched `rig@0.7.0`). This affects the `"rig"` import specifier only cosmetically, since the plugin can map any specifier, but pack authors' `peerDependencies` need the real name.
 - When installed from a package manager, the binary is already on PATH, so the `~/.local/bin/rig` link from `sync` is redundant and could shadow a newer global install. Probably skip the bin link when `paths.root` is inside a `node_modules`. Settle this in the npm phase.
-- Whole-pack disable syntax (`rig pack disable` vs `rig remove myang:`).
+- ~~Whole-pack disable syntax~~ Decided: `rig pack disable <name>` / `rig pack enable <name>`, stored in config `disabledPacks` (not in `disabled`). The core pack can't be disabled. A disabled pack's tools aren't imported, its skills aren't linked, and its dependencies aren't checked or installed. `rig remove myang:` is not supported.
+
+## Implementation notes
+
+Choices made while implementing phases 1-6 that the sections above leave open:
+
+- The resolver is installed by `loadRegistry` itself (idempotent), so every built-in and test that loads tools gets it, not only `cli.ts`.
+- `bun test` is scoped to `test/` via `bunfig.toml`, so pack tests never run as part of rig's suite.
+- Phases 2-6 keep `packs/myang/` tracked (force-added despite the `packs/*` ignore) so no personal content leaves git history before phase 7 moves it out. Phase 7 untracks it. `instructions/AGENTS.md` likewise stays tracked until then.
+- While a migration is pending, sync keeps linking the legacy `instructions/AGENTS.md` (rather than pruning the links) and reports the `mv`; after the move the links show as repaired.
+- `writeSkillFiles` only checks writability when a file actually needs writing, so a read-only pack with current generated files is not a problem.
+- An alias can't shadow a core command either, not just a built-in.
+- `rig pack remove` only removes config `packs` entries; for a pack found by scanning it points at `rig pack disable`.
+- `rig new pack --path <dir>` outside `~/.config/rig/packs` adds the path to config `packs`.
+- `package.json` gains `"version": "0.1.0"`, which the `peerDependencies.rig` check compares against.

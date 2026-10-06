@@ -38,7 +38,7 @@ async function installStaleDeps(dryRun: boolean): Promise<{ installed: string[];
   const installed: string[] = [];
   const problems: string[] = [];
   for (const pack of discoverPacks(loadConfig()).packs) {
-    if (!depsStale(pack)) continue;
+    if (pack.disabled || !depsStale(pack)) continue;
     try {
       if (!dryRun) await installDeps(pack);
       installed.push(pack.name);
@@ -201,11 +201,16 @@ export async function status(): Promise<number> {
   console.log(`${c.bold("root")}  ${tildify(paths.root)}`);
   console.log(`${c.bold("bin")}   ${tildify(bin.path)}  ${linkState(bin.path, bin.source)}\n`);
 
+  console.log(c.bold("Packs"));
+  console.log(table(reg.packs.map((p) => [p.disabled ? `${p.name} ${c.dim("(disabled)")}` : p.name, c.dim(p.origin), tildify(p.dir)])));
+  console.log("");
+
   console.log(c.bold("Skills"));
   if (reg.skills.length) {
-    const header = ["", ...targets.map((t) => c.dim(t.id))];
+    const header = ["", "", ...targets.map((t) => c.dim(t.id))];
     const rows = reg.skills.map((s) => [
       label(s),
+      c.dim(s.pack.name),
       ...targets.map((t) => (isActive(s) ? linkState(`${t.path}/${s.name}`, s.dir) : c.dim("-"))),
     ]);
     console.log(table([header, ...rows]));
@@ -231,6 +236,7 @@ export async function status(): Promise<number> {
       const auth = !t.auth.length ? c.dim("no auth") : missing.length ? c.red(`missing ${missing.join(", ")}`) : c.green("auth ok");
       return [
         label(t),
+        c.dim(t.pack.name),
         c.dim(`${t.commands.length} cmd`),
         isActive(t) ? auth : c.dim("-"),
       ];
