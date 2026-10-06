@@ -5,6 +5,7 @@ import { z } from "zod";
 import { apiKeyVar, envPrefix, type AuthVar, type CommandDef, type Context, type ToolDef } from "../sdk";
 import { loadConfig } from "./config";
 import { paths } from "./paths";
+import { installResolver } from "./resolve";
 
 export const RESERVED = ["sync", "remove", "add", "desync", "ls", "status", "auth", "config", "schema", "new", "help"];
 const NAME_RE = /^[a-z][a-z0-9-]*$/;
@@ -188,6 +189,7 @@ let cached: Registry | undefined;
 
 export async function loadRegistry(): Promise<Registry> {
   if (cached) return cached;
+  installResolver();
   const { disabled } = loadConfig();
   const problems: string[] = [];
   const tools: ResolvedTool[] = [];

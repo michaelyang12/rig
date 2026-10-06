@@ -1,4 +1,4 @@
-import { cpSync, mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { cpSync, mkdirSync, mkdtempSync, realpathSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { harnessPath, type HarnessId, type HarnessPath } from "../src/core/harnesses";
@@ -26,9 +26,6 @@ export function sandbox(): Sandbox {
   const dir = realpathSync(mkdtempSync(join(tmpdir(), "rig-test-")));
   const root = join(dir, "root");
   cpSync(FIXTURES, root, { recursive: true });
-  // Copied tools still need the "rig" alias and zod.
-  writeFileSync(join(root, "tsconfig.json"), JSON.stringify({ compilerOptions: { paths: { rig: [join(REPO, "src/sdk/index.ts")] } } }));
-  symlinkSync(join(REPO, "node_modules"), join(root, "node_modules"));
   mkdirSync(join(root, "bin"));
   cpSync(join(REPO, "bin", "rig"), join(root, "bin", "rig"));
 
@@ -64,7 +61,7 @@ export function sandbox(): Sandbox {
     bin: join(home, ".local", "bin", "rig"),
     envFile: join(home, ".config", "rig", ".env"),
     async run(args, opts = {}) {
-      const proc = Bun.spawn(["bun", join(REPO, "src", "cli.ts"), ...args], {
+      const proc = Bun.spawn(["bun", "--no-install", join(REPO, "src", "cli.ts"), ...args], {
         env: { ...env, ...opts.env },
         stdin: opts.stdin !== undefined ? new Blob([opts.stdin]) : "ignore",
         stdout: "pipe",
