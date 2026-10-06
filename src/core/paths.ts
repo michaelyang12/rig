@@ -15,11 +15,13 @@ export const paths = {
   get corePack() {
     return join(this.packsDir, "rig");
   },
-  get instructions() {
-    return join(this.root, "instructions");
+  /** Template copied by `rig new instructions`; ships with rig. */
+  get instructionsExample() {
+    return join(this.root, "instructions", "AGENTS.example.md");
   },
-  get instructionsFile() {
-    return join(this.instructions, "AGENTS.md");
+  /** Where the instructions file lived before it moved to the config dir; only read for the migration hint. */
+  get legacyInstructionsFile() {
+    return join(this.root, "instructions", "AGENTS.md");
   },
   get shim() {
     return join(this.root, "bin", "rig");
@@ -33,6 +35,10 @@ export const paths = {
   /** Default home for user packs; survives reinstalls. */
   get userPacksDir() {
     return join(this.configDir, "packs");
+  },
+  /** The user's global instructions, linked into each harness. */
+  get instructionsFile() {
+    return join(this.configDir, "AGENTS.md");
   },
   get envFile() {
     return join(this.configDir, ".env");

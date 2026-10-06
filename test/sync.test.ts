@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { cpSync, existsSync, lstatSync, mkdirSync, readFileSync, readlinkSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, lstatSync, mkdirSync, readFileSync, readlinkSync, renameSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { sandbox, type Sandbox } from "./helpers";
 
@@ -88,8 +88,8 @@ describe("sync", () => {
 
   test("links the harnesses named in config, in any case, plus the always-on ones", async () => {
     writeConfig({ harnesses: ["CODEX"] });
-    mkdirSync(join(sb.root, "instructions"), { recursive: true });
-    writeFileSync(join(sb.root, "instructions", "AGENTS.md"), "# rules\n");
+    mkdirSync(dirname(sb.instructions), { recursive: true });
+    writeFileSync(sb.instructions, "# rules\n");
     const { code } = await sb.run(["sync"]);
     expect(code).toBe(0);
     expect(isLinkTo(join(sb.agents, "alpha"), join(sb.core, "skills", "alpha"))).toBe(true);
@@ -193,10 +193,10 @@ describe("desync", () => {
 
 describe("instructions", () => {
   const writeSource = (text = "# rules\n") => {
-    mkdirSync(join(sb.root, "instructions"), { recursive: true });
-    writeFileSync(join(sb.root, "instructions", "AGENTS.md"), text);
+    mkdirSync(dirname(sb.instructions), { recursive: true });
+    writeFileSync(sb.instructions, text);
   };
-  const source = () => join(sb.root, "instructions", "AGENTS.md");
+  const source = () => sb.instructions;
   const claudeMd = () => sb.harness("claude", "instructions");
   const codexMd = () => sb.harness("codex", "instructions");
 
@@ -213,7 +213,7 @@ describe("instructions", () => {
   test("links nothing without a source file", async () => {
     await sb.run(["sync"]);
     expect(existsSync(claudeMd())).toBe(false);
-    expect((await sb.run(["status"])).stdout).toContain("none (create instructions/AGENTS.md");
+    expect((await sb.run(["status"])).stdout).toContain("none (create one with: rig new instructions)");
   });
 
   test("--dry-run writes nothing", async () => {
@@ -256,6 +256,39 @@ describe("instructions", () => {
     expect(stdout).toContain("- instructions → ~/.claude/CLAUDE.md");
     expect(existsSync(claudeMd())).toBe(false);
     expect(existsSync(codexMd())).toBe(false);
+  });
+
+  test("an instructions/AGENTS.md in the install gets a migration hint, and the move repairs the links", async () => {
+    const legacy = join(sb.root, "instructions", "AGENTS.md");
+    writeFileSync(legacy, "# old rules\n");
+    mkdirSync(dirname(claudeMd()), { recursive: true });
+    symlinkSync(legacy, claudeMd());
+    const state = join(sb.home, ".local", "state", "rig", "links.json");
+    mkdirSync(dirname(state), { recursive: true });
+    writeFileSync(state, JSON.stringify({ links: [{ path: claudeMd(), source: legacy, kind: "instructions", name: "instructions" }] }));
+
+    const before = await sb.run(["sync"]);
+    expect(before.code).toBe(1);
+    expect(before.stdout).toContain(`instructions: ${legacy} should move to ~/.config/rig/AGENTS.md`);
+    expect(before.stdout).toContain(`run: mv ${legacy} ${source()}`);
+    expect(isLinkTo(claudeMd(), legacy)).toBe(true);
+
+    mkdirSync(dirname(source()), { recursive: true });
+    renameSync(legacy, source());
+    const after = await sb.run(["sync"]);
+    expect(after.code).toBe(0);
+    expect(after.stdout).toContain("~ instructions → ~/.claude/CLAUDE.md");
+    expect(isLinkTo(claudeMd(), source())).toBe(true);
+    expect(after.stdout).not.toContain("instructions: ");
+  });
+
+  test("rig new instructions copies the example and won't overwrite", async () => {
+    const r = await sb.run(["new", "instructions"]);
+    expect(r.code).toBe(0);
+    expect(readFileSync(source(), "utf8")).toBe(readFileSync(join(sb.root, "instructions", "AGENTS.example.md"), "utf8"));
+    writeFileSync(source(), "mine");
+    expect((await sb.run(["new", "instructions"])).code).toBe(2);
+    expect(readFileSync(source(), "utf8")).toBe("mine");
   });
 
   test("status and desync", async () => {

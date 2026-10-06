@@ -5,6 +5,7 @@ import { z } from "zod";
 import { apiKeyVar, envPrefix, type AuthVar, type CommandDef, type Context, type ToolDef } from "../sdk";
 import { loadConfig, type Config } from "./config";
 import { depsStale, peerMismatch } from "./deps";
+import { instructionsMigration } from "./instructions";
 import { CORE_PACK, discoverPacks, NAME_RE, subdirs, type Pack } from "./packs";
 import { installResolver } from "./resolve";
 
@@ -213,6 +214,8 @@ export async function loadRegistry(override?: Config): Promise<Registry> {
   installResolver();
   const config = override ?? loadConfig();
   const { packs, problems } = discoverPacks(config);
+  const migration = instructionsMigration();
+  if (migration) problems.push(migration);
   const tools: ResolvedTool[] = [];
   const skills: Skill[] = [];
   for (const pack of packs) {

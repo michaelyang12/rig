@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { writeSkillFiles } from "../src/core/generated";
@@ -44,6 +44,18 @@ describe("writeSkillFiles", () => {
     await writeSkillFiles(registry("gen", { "a.md": "x" }, packs.two));
     expect(existsSync(join(packs.two.dir, "skills", "gen", "a.md"))).toBe(true);
     expect(existsSync(join(packs.one.dir, "skills", "gen", "a.md"))).toBe(false);
+  });
+
+  test("a read-only pack is reported and skipped", async () => {
+    const skill = join(packs.one.dir, "skills", "gen");
+    chmodSync(skill, 0o555);
+    try {
+      const reg = registry("gen", { "a.md": "x" });
+      expect(await writeSkillFiles(reg)).toEqual([]);
+      expect(reg.problems).toEqual(["tool gen: pack one isn't writable, so skillFiles were not written to skills/gen/"]);
+    } finally {
+      chmodSync(skill, 0o755);
+    }
   });
 
   test("dry run writes nothing", async () => {

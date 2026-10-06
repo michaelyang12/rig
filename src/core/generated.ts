@@ -1,7 +1,16 @@
 // @module Writes tools' skillFiles() output into <pack>/skills/<tool>/ during sync.
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { accessSync, constants, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { isActive, type Registry } from "./registry";
+
+function writable(dir: string): boolean {
+  try {
+    accessSync(dir, constants.W_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 /**
  * Write each enabled tool's `skillFiles()` into `skills/<tool>/` of the tool's own pack. Only writes files
@@ -31,6 +40,10 @@ export async function writeSkillFiles(reg: Registry, { dryRun = false } = {}): P
         continue;
       }
       if (existsSync(file) && readFileSync(file, "utf8") === content) continue;
+      if (!writable(dir)) {
+        reg.problems.push(`tool ${tool.name}: pack ${tool.pack.name} isn't writable, so skillFiles were not written to skills/${tool.name}/`);
+        break;
+      }
       if (!dryRun) {
         mkdirSync(dirname(file), { recursive: true });
         writeFileSync(file, content);

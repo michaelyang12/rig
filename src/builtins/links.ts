@@ -4,7 +4,7 @@ import { writeSkillFiles } from "../core/generated";
 import { discoverPacks } from "../core/packs";
 import { lookupVar, readEnvFile } from "../core/env";
 import { harnessPath } from "../core/harnesses";
-import { instructionLinks } from "../core/instructions";
+import { instructionLinks, instructionsSource } from "../core/instructions";
 import { desiredLinks, removeAllLinks, syncLinks, type LinkChange } from "../core/links";
 import { expandHome, paths, tildify } from "../core/paths";
 import { isActive, loadRegistry, resetRegistry, type Registry, type ResolvedTool } from "../core/registry";
@@ -211,16 +211,17 @@ export async function status(): Promise<number> {
     console.log(table([header, ...rows]));
   } else console.log(c.dim("  none"));
 
-  console.log(`\n${c.bold("Instructions")}  ${c.dim(tildify(paths.instructionsFile))}`);
+  const source = instructionsSource() ?? paths.instructionsFile;
+  console.log(`\n${c.bold("Instructions")}  ${c.dim(tildify(source))}`);
   if (instructionLinks().length) {
     const rows = withPath("instructions").map((t) => [
       c.dim(t.id),
       tildify(t.path),
-      linkState(t.path, paths.instructionsFile),
+      linkState(t.path, source),
     ]);
     console.log(table(rows));
   }
-  else console.log(c.dim("  none (create instructions/AGENTS.md to link one)"));
+  else console.log(c.dim("  none (create one with: rig new instructions)"));
 
   console.log(`\n${c.bold("Tools")}`);
   if (reg.tools.length) {

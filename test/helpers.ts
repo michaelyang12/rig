@@ -21,6 +21,8 @@ export interface Sandbox {
   harness(id: HarnessId, kind: HarnessPath): string;
   bin: string;
   envFile: string;
+  /** The global instructions source, `~/.config/rig/AGENTS.md`. */
+  instructions: string;
   run(args: string[], opts?: { env?: Record<string, string>; stdin?: string }): Promise<{ code: number; stdout: string; stderr: string }>;
   cleanup(): void;
 }
@@ -33,6 +35,7 @@ export function sandbox(): Sandbox {
   cpSync(join(FIXTURES, "packs", "core-fixture"), core, { recursive: true });
   mkdirSync(join(root, "bin"));
   cpSync(join(REPO, "bin", "rig"), join(root, "bin", "rig"));
+  cpSync(join(REPO, "instructions", "AGENTS.example.md"), join(root, "instructions", "AGENTS.example.md"));
 
   const home = join(dir, "home");
   const user = join(home, ".config", "rig", "packs", "demo");
@@ -68,6 +71,7 @@ export function sandbox(): Sandbox {
     harness,
     bin: join(home, ".local", "bin", "rig"),
     envFile: join(home, ".config", "rig", ".env"),
+    instructions: join(home, ".config", "rig", "AGENTS.md"),
     async run(args, opts = {}) {
       const proc = Bun.spawn(["bun", "--no-install", join(REPO, "src", "cli.ts"), ...args], {
         env: { ...env, ...opts.env },

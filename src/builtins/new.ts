@@ -1,8 +1,8 @@
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { loadConfig } from "../core/config";
 import { CORE_PACK, discoverPacks, type Pack } from "../core/packs";
-import { tildify } from "../core/paths";
+import { paths, tildify } from "../core/paths";
 import { RESERVED } from "../core/registry";
 import { c, takeFlags } from "../core/ui";
 import { apiKeyVar, envPrefix, RigError } from "../sdk";
@@ -181,6 +181,14 @@ export async function newCmd(argv: string[]): Promise<number> {
   const { flags, values, rest } = takeFlags(argv, ["--auth", "--uv", "--no-skill"], ["--pack"]);
   const [kind, rawName] = rest;
 
+  if (kind === "instructions") {
+    if (existsSync(paths.instructionsFile)) throw new RigError("USAGE", `${tildify(paths.instructionsFile)} already exists`);
+    mkdirSync(dirname(paths.instructionsFile), { recursive: true });
+    write(paths.instructionsFile, readFileSync(paths.instructionsExample, "utf8"));
+    console.log(c.dim(`\nnext: edit it, then rig sync`));
+    return 0;
+  }
+
   if (kind === "skill") {
     const name = checkName("skill", rawName);
     const dir = join(targetPack(values.get("--pack")).dir, "skills", name);
@@ -191,7 +199,7 @@ export async function newCmd(argv: string[]): Promise<number> {
     return 0;
   }
 
-  if (kind !== "tool") throw new RigError("USAGE", "usage: rig new tool <name> [--auth] [--uv] [--no-skill] [--pack <name>] | rig new skill <name> [--pack <name>]");
+  if (kind !== "tool") throw new RigError("USAGE", "usage: rig new tool <name> [--auth] [--uv] [--no-skill] [--pack <name>] | rig new skill <name> [--pack <name>] | rig new instructions");
 
   const name = checkName("tool", rawName);
   const pack = targetPack(values.get("--pack"));
