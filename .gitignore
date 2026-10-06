@@ -36,3 +36,6 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 # user packs live here only when running from a clone
 packs/*
 !packs/rig
+
+# user content; lives in ~/.config/rig/AGENTS.md
+instructions/AGENTS.md

@@ -1,6 +1,6 @@
 # Spec: packs
 
-Status: phases 1-6 implemented · 2026-10-05
+Status: phases 1-7 implemented · 2026-10-05
 
 ## Why
 
@@ -222,10 +222,11 @@ Choices made while implementing phases 1-6 that the sections above leave open:
 
 - The resolver is installed by `loadRegistry` itself (idempotent), so every built-in and test that loads tools gets it, not only `cli.ts`.
 - `bun test` is scoped to `test/` via `bunfig.toml`, so pack tests never run as part of rig's suite.
-- Phases 2-6 keep `packs/myang/` tracked (force-added despite the `packs/*` ignore) so no personal content leaves git history before phase 7 moves it out. Phase 7 untracks it. `instructions/AGENTS.md` likewise stays tracked until then.
+- Phases 2-6 keep `packs/myang/` tracked (force-added despite the `packs/*` ignore) so no personal content leaves git history before phase 7 moves it out. Phase 7 untracked it. `instructions/AGENTS.md` likewise stayed tracked until then, and is now gitignored.
 - While a migration is pending, sync keeps linking the legacy `instructions/AGENTS.md` (rather than pruning the links) and reports the `mv`; after the move the links show as repaired.
 - `writeSkillFiles` only checks writability when a file actually needs writing, so a read-only pack with current generated files is not a problem.
 - An alias can't shadow a core command either, not just a built-in.
 - `rig pack remove` only removes config `packs` entries; for a pack found by scanning it points at `rig pack disable`.
 - `rig new pack --path <dir>` outside `~/.config/rig/packs` adds the path to config `packs`.
 - `package.json` gains `"version": "0.1.0"`, which the `peerDependencies.rig` check compares against.
+- Phase 7: the personal pack is its own repo (`~/Source/rig-pack-myang`, public as `michaelyang12/rig-pack-myang`), symlinked into `~/.config/rig/packs/myang` by its `link.sh`. Its tests preload rig's resolver from the rig install (`RIG_ROOT`, else the `rig` on PATH).
